@@ -106,8 +106,8 @@ sub, sup { line-height: 0; }
 .slide-indicator { min-width: 44px; text-align: center; color: var(--fg-muted); font-size: .8rem; font-variant-numeric: tabular-nums; }
 .main-content { width: 100%; max-width: 1280px; margin: 0 auto; padding: 34px 44px 48px; }
 .slide-section { display: none; min-width: 0; }
-.slide-section.active { display: block; animation: slide-enter .28s ease-out; }
-@keyframes slide-enter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.slide-section.active { display: block; animation: slide-enter .15s ease-out; }
+@keyframes slide-enter { from { opacity: 0; } to { opacity: 1; } }
 .slide-card { min-width: 0; }
 .slide-title-wrap { margin-bottom: 26px; }
 .slide-eyebrow { margin-bottom: 13px; color: var(--primary); font-size: .68rem; font-weight: 750; letter-spacing: .15em; text-transform: uppercase; }

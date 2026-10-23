@@ -290,6 +290,10 @@ export class Visualizer {
       clearInterval(this.playTimer);
       this.playTimer = null;
     }
+    if (this.animations && this.animations.length > 0) {
+      this.animations.forEach(a => a.cancel());
+      this.animations = [];
+    }
   }
 
   renderState(state) {
@@ -628,6 +632,10 @@ export class Visualizer {
     const rep = algoRes.representativeRun;
     const metrics = algoRes.metrics;
 
+    const initialLimit = 50;
+    const initialAllocs = rep.allocations.slice(0, initialLimit);
+    const totalCount = rep.allocations.length;
+
     let html = `
       <div class="backend-summary-card">
         <h4>Hasil CloudSim Nyata: ${algoRes.algorithm}</h4>
@@ -645,8 +653,12 @@ export class Visualizer {
         </div>
       </div>
 
+
       <div class="allocation-table-wrap">
-        <h4>Pemetaan Alokasi Task → VM Nyata (${rep.allocations.length} task)</h4>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:8px;">
+          <h4>Pemetaan Alokasi Task → VM Nyata (${totalCount} task)</h4>
+          ${totalCount > initialLimit ? `<button id="vis-btn-show-all-alloc" class="btn btn-secondary" style="font-size:0.75rem; padding:4px 9px;">Tampilkan Seluruh ${totalCount} Task</button>` : ''}
+        </div>
         <div class="matrix-table-wrap" style="max-height: 420px; overflow-y: auto;">
         <table class="data-table">
           <thead>
@@ -662,8 +674,8 @@ export class Visualizer {
               <th>SLA</th>
             </tr>
           </thead>
-          <tbody>
-            ${rep.allocations.map(a => `
+          <tbody id="vis-backend-alloc-tbody">
+            ${initialAllocs.map(a => `
               <tr>
                 <td>#${a.taskId}</td>
                 <td>VM ${a.vmId}</td>
@@ -683,5 +695,24 @@ export class Visualizer {
     `;
 
     this.backendResultArea.innerHTML = html;
+    document.getElementById('vis-btn-show-all-alloc')?.addEventListener('click', (e) => {
+      const tbody = document.getElementById('vis-backend-alloc-tbody');
+      if (tbody) {
+        tbody.innerHTML = rep.allocations.map(a => `
+          <tr>
+            <td>#${a.taskId}</td>
+            <td>VM ${a.vmId}</td>
+            <td>DC ${a.datacenterIndex}</td>
+            <td>Host ${a.hostIndex}</td>
+            <td>${a.arrival.toFixed(2)}</td>
+            <td>${a.start.toFixed(2)}</td>
+            <td>${a.finish.toFixed(2)}</td>
+            <td>${a.cpuTime.toFixed(2)}</td>
+            <td>SLA ${a.sla}</td>
+          </tr>
+        `).join('');
+      }
+      e.target.style.display = 'none';
+    });
   }
 }

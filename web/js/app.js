@@ -43,6 +43,7 @@ class App {
     });
 
     // Hash navigation
+    window.addEventListener('popstate', () => this.syncHash());
     window.addEventListener('hashchange', () => this.syncHash());
     this.syncHash();
   }
@@ -52,10 +53,10 @@ class App {
     const match = hash.match(/#slide-(\d+)/);
     if (match) {
       const num = parseInt(match[1]);
-      if (num >= 1 && num <= this.totalSlides) {
+      if (num >= 1 && num <= this.totalSlides && num !== this.currentSlide) {
         this.goToSlide(num, false);
       }
-    } else {
+    } else if (this.currentSlide !== 1) {
       this.goToSlide(1, false);
     }
   }
@@ -63,9 +64,15 @@ class App {
   goToSlide(num, updateHash = true) {
     if (num < 1) num = 1;
     if (num > this.totalSlides) num = this.totalSlides;
+    if (this.currentSlide === num && document.getElementById(`slide-${num}`)?.classList.contains('active')) {
+      return;
+    }
+    const previousSlide = this.currentSlide;
     this.currentSlide = num;
 
-    document.querySelectorAll('.slide-section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.slide-section').forEach(s => {
+      if (s.id !== `slide-${num}`) s.classList.remove('active');
+    });
     const target = document.getElementById(`slide-${num}`);
     if (target) target.classList.add('active');
 
@@ -76,15 +83,15 @@ class App {
     if (this.prevBtn) this.prevBtn.disabled = (num === 1);
     if (this.nextBtn) this.nextBtn.disabled = (num === this.totalSlides);
 
-
     if (num !== 4) this.visualizer?.pause();
-    if (num === 5) this.evaluationManager?.loadInitialData();
-    if (updateHash) {
-      window.location.hash = `#slide-${num}`;
+    if (num === 5 && previousSlide !== 5) this.evaluationManager?.loadInitialData();
+
+    if (updateHash && window.location.hash !== `#slide-${num}`) {
+      history.replaceState(null, '', `#slide-${num}`);
     }
 
-    // Scroll to top of slide
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // Instant scroll to top to avoid smooth-scroll fighting with slide display
+    window.scrollTo(0, 0);
   }
 
   async initComponents() {
