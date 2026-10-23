@@ -357,7 +357,10 @@
 
         <!-- Scenario Form Component for Slide 4 -->
         <div class="form-card">
-          <h3 class="form-heading">Skenario eksperimen <span>Konfigurasi tersinkron dengan slide evaluasi</span></h3>
+          <div class="eval-header-bar">
+            <h3 class="form-heading">Konfigurasi eksperimen</h3>
+            <button id="eval-btn-run" class="btn btn-primary">Jalankan simulasi CloudSim →</button>
+          </div>
           <div id="slide-4-form-container"></div>
         </div>
 
@@ -413,13 +416,9 @@
           <p class="lead-text">Tujuh algoritma, sembilan metrik CloudSim 7, dan workload yang sama untuk perbandingan terukur.</p>
         </div>
 
-        <!-- Synchronized Scenario Form for Slide 5 -->
-        <div class="form-card">
-          <div class="eval-header-bar">
-            <h3 class="form-heading">Konfigurasi eksperimen</h3>
-            <button id="eval-btn-run" class="btn btn-primary">Jalankan semua 7 algoritma →</button>
-          </div>
-          <div id="slide-5-form-container"></div>
+        <div class="eval-header-bar" style="margin-bottom: 1.25rem;">
+          <h3 class="form-heading" style="margin:0;">Hasil Evaluasi &amp; Perbandingan <span>Dikonfigurasi di Slide 4</span></h3>
+          <button id="eval-btn-rerun" class="btn btn-secondary">Jalankan ulang simulasi →</button>
         </div>
 
         <div id="eval-stale-banner" class="alert alert-error" style="display:none;"></div>

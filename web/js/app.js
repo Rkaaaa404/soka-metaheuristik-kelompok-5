@@ -104,9 +104,8 @@ class App {
       this.visualizer.invalidate();
     };
 
-    // Register forms on slide 4 and slide 5
+    // Register form on slide 4
     this.formManager.registerForm('slide-4-form-container');
-    this.formManager.registerForm('slide-5-form-container');
 
     // Slide 3 tab switching
     document.querySelectorAll('.theory-tab-btn').forEach(btn => {

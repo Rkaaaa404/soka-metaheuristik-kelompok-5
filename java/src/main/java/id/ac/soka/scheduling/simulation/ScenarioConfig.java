@@ -42,10 +42,12 @@ public record ScenarioConfig(
         @JsonProperty("csa") AlgorithmOptions.CsaOptions csa,
         @JsonProperty("phs") AlgorithmOptions.PhsOptions phs
     ) {
+        int tasks = taskCount != null ? taskCount : 1000;
+        String defaultDataset = "GoCJ_Dataset_" + tasks + ".csv";
         return new ScenarioConfig(
-            dataset != null ? dataset : "GoCJ_Dataset_1000.csv",
+            dataset != null && !dataset.isBlank() ? dataset : defaultDataset,
             algorithms != null ? algorithms : List.of("CSA", "PHS", "FCFS", "RR", "SJF", "MinMin", "MaxMin"),
-            taskCount != null ? taskCount : 1000,
+            tasks,
             datacenters != null ? datacenters : 2,
             hostsPerDatacenter != null ? hostsPerDatacenter : 5,
             vmDistribution != null ? vmDistribution.total() : 5,
@@ -58,7 +60,7 @@ public record ScenarioConfig(
     }
 
     public ScenarioConfig {
-        if (dataset == null || dataset.isBlank()) dataset = "GoCJ_Dataset_1000.csv";
+        if (dataset == null || dataset.isBlank()) dataset = "GoCJ_Dataset_" + taskCount + ".csv";
         if (algorithms == null) algorithms = List.of("CSA", "PHS", "FCFS", "RR", "SJF", "MinMin", "MaxMin");
         else algorithms = List.copyOf(algorithms);
         if (vmDistribution == null) vmDistribution = new VmDistribution(2, 2, 1);

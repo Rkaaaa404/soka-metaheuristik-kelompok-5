@@ -27,6 +27,7 @@ export class EvaluationManager {
     this.isRunning = false;
     this.loaded = false;
     this.runBtn = document.getElementById('eval-btn-run');
+    this.rerunBtn = document.getElementById('eval-btn-rerun');
     this.progressBar = document.getElementById('eval-progress-bar');
     this.progressText = document.getElementById('eval-progress-text');
     this.progressBox = document.getElementById('eval-progress-box');
@@ -34,12 +35,25 @@ export class EvaluationManager {
     this.provenanceInfo = document.getElementById('eval-provenance-info');
     this.staleBanner = document.getElementById('eval-stale-banner');
     this.summary = document.getElementById('eval-timeline-container');
-    this.runBtn.addEventListener('click', () => this.runEvaluation());
+    this.runBtn?.addEventListener('click', () => {
+      window.app?.goToSlide(5);
+      this.runEvaluation();
+    });
+    this.rerunBtn?.addEventListener('click', () => this.runEvaluation());
+    this.updateButtonLabels();
   }
 
   markStale() {
     this.isStale = !!this.currentResult && this.resultConfig !== fingerprint(this.formManager.getConfig());
     this.updateStaleBanner();
+    if (!this.isRunning) this.updateButtonLabels();
+  }
+
+  updateButtonLabels() {
+    const algoCount = this.formManager.getConfig().algorithms?.length || 7;
+    if (this.runBtn) this.runBtn.textContent = `Jalankan ${algoCount} algoritma →`;
+    const backendButton = document.getElementById('vis-backend-run');
+    if (backendButton) backendButton.textContent = `Run CloudSim · ${algoCount} algoritma`;
   }
 
   async loadInitialData() {
@@ -100,11 +114,20 @@ export class EvaluationManager {
 
   setRunning(running) {
     this.isRunning = running;
-    this.runBtn.disabled = running;
-    this.runBtn.textContent = running ? 'Eksperimen berlangsung…' : 'Run semua 7 algoritma';
+    const algoCount = this.formManager.getConfig().algorithms?.length || 7;
+    if (this.runBtn) {
+      this.runBtn.disabled = running;
+      this.runBtn.textContent = running ? 'Eksperimen berlangsung…' : `Jalankan ${algoCount} algoritma →`;
+    }
+    if (this.rerunBtn) {
+      this.rerunBtn.disabled = running;
+      this.rerunBtn.textContent = running ? 'Eksperimen berlangsung…' : 'Jalankan ulang simulasi →';
+    }
     const backendButton = document.getElementById('vis-backend-run');
-    backendButton.disabled = running;
-    backendButton.textContent = running ? 'Eksperimen berlangsung…' : 'Run CloudSim · semua 7 algoritma';
+    if (backendButton) {
+      backendButton.disabled = running;
+      backendButton.textContent = running ? 'Eksperimen berlangsung…' : `Run CloudSim · ${algoCount} algoritma`;
+    }
     if (!running) this.progressBox.style.display = 'none';
   }
 

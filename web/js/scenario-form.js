@@ -1,5 +1,5 @@
 /**
- * Synchronized Scenario Form state and component for Slide 4 and Slide 5.
+ * Synchronized Scenario Form state and component for Slide 4.
  */
 const ALGO_IDS = ['CSA', 'PHS', 'FCFS', 'RR', 'SJF', 'MinMin', 'MaxMin'];
 
@@ -23,8 +23,7 @@ export class ScenarioFormManager {
   }
 
   setDatasets(datasets) {
-    this.datasets = datasets;
-    this.updateAllSelects();
+    this.datasets = datasets || [];
   }
 
   registerForm(containerId) {
@@ -38,15 +37,19 @@ export class ScenarioFormManager {
     container.innerHTML = `
       <div class="form-grid">
         <div class="form-group">
-          <label for="${container.id}-dataset">Dataset GoCJ</label>
-          <select id="${container.id}-dataset" class="form-input dataset-select">
-            <option value="GoCJ_Dataset_1000.csv">GoCJ_Dataset_1000.csv (1000 task)</option>
-          </select>
-        </div>
-
-        <div class="form-group">
           <label for="${container.id}-taskCount">Jumlah Task (N)</label>
-          <input type="number" id="${container.id}-taskCount" class="form-input" min="1" max="10000" value="${this.state.taskCount}">
+          <select id="${container.id}-taskCount" class="form-input">
+            <option value="1000" ${this.state.taskCount === 1000 ? 'selected' : ''}>1.000 task</option>
+            <option value="2000" ${this.state.taskCount === 2000 ? 'selected' : ''}>2.000 task</option>
+            <option value="3000" ${this.state.taskCount === 3000 ? 'selected' : ''}>3.000 task</option>
+            <option value="4000" ${this.state.taskCount === 4000 ? 'selected' : ''}>4.000 task</option>
+            <option value="5000" ${this.state.taskCount === 5000 ? 'selected' : ''}>5.000 task</option>
+            <option value="6000" ${this.state.taskCount === 6000 ? 'selected' : ''}>6.000 task</option>
+            <option value="7000" ${this.state.taskCount === 7000 ? 'selected' : ''}>7.000 task</option>
+            <option value="8000" ${this.state.taskCount === 8000 ? 'selected' : ''}>8.000 task</option>
+            <option value="9000" ${this.state.taskCount === 9000 ? 'selected' : ''}>9.000 task</option>
+            <option value="10000" ${this.state.taskCount === 10000 ? 'selected' : ''}>10.000 task</option>
+          </select>
         </div>
 
         <div class="form-group">
@@ -142,20 +145,7 @@ export class ScenarioFormManager {
     `;
 
     this.bindEvents(container);
-    this.updateAllSelects();
     this.validateAlgorithms(container.id);
-  }
-
-  updateAllSelects() {
-    if (!this.datasets || this.datasets.length === 0) return;
-    for (const form of this.boundForms) {
-      const select = form.querySelector('.dataset-select');
-      if (!select) continue;
-      const currentVal = this.state.dataset;
-      select.innerHTML = this.datasets.map(d =>
-        `<option value="${d.filename}" ${d.filename === currentVal ? 'selected' : ''}>${d.filename} (${d.rowCount} task)</option>`
-      ).join('');
-    }
   }
 
   bindEvents(container) {
@@ -167,16 +157,13 @@ export class ScenarioFormManager {
       this.syncAllForms();
     };
 
-    getEl('dataset').addEventListener('change', (e) => {
-      const ds = this.datasets.find(d => d.filename === e.target.value);
-      this.state.dataset = e.target.value;
-      if (ds && this.state.taskCount > ds.rowCount) {
-        this.state.taskCount = ds.rowCount;
-      }
+    getEl('taskCount').addEventListener('change', (e) => {
+      const val = parseInt(e.target.value) || 1000;
+      this.state.taskCount = val;
+      this.state.dataset = `GoCJ_Dataset_${val}.csv`;
       this.syncAllForms();
     });
 
-    getEl('taskCount').addEventListener('input', (e) => syncField('taskCount', parseInt(e.target.value) || 1));
     getEl('datacenters').addEventListener('input', (e) => syncField('datacenters', parseInt(e.target.value) || 1));
     getEl('hosts').addEventListener('input', (e) => syncField('hostsPerDatacenter', parseInt(e.target.value) || 1));
 
@@ -235,13 +222,11 @@ export class ScenarioFormManager {
 
   isValid() {
     const validInputs = [...this.boundForms].every(form =>
-      [...form.querySelectorAll('input')].every(input => input.value !== '' && input.checkValidity()));
-    const dataset = this.datasets.find(d => d.filename === this.state.dataset);
+      [...form.querySelectorAll('input, select')].every(input => input.value !== '' && input.checkValidity()));
     const vmTotal = this.state.vmDistribution.small + this.state.vmDistribution.medium + this.state.vmDistribution.large;
     return validInputs
       && vmTotal >= 1
       && this.state.csa.selected <= this.state.csa.population
-      && (!dataset || this.state.taskCount <= dataset.rowCount)
       && this.state.algorithms.length >= 1;
   }
 
@@ -253,7 +238,6 @@ export class ScenarioFormManager {
         if (el && el.value !== String(v) && document.activeElement !== el) el.value = v;
       };
 
-      setVal('dataset', this.state.dataset);
       setVal('taskCount', this.state.taskCount);
       setVal('datacenters', this.state.datacenters);
       setVal('hosts', this.state.hostsPerDatacenter);
@@ -292,6 +276,7 @@ export class ScenarioFormManager {
 
   getConfig() {
     const cfg = JSON.parse(JSON.stringify(this.state));
+    cfg.dataset = `GoCJ_Dataset_${cfg.taskCount}.csv`;
     cfg.vmsPerDatacenter = cfg.vmDistribution.small + cfg.vmDistribution.medium + cfg.vmDistribution.large;
     return cfg;
   }
