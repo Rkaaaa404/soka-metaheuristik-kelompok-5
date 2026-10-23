@@ -361,6 +361,7 @@ export class Visualizer {
     for (const taskId of candidate.taskOrder) tasksByVm[candidate.assignedVm[taskId]].push(this.sampleTasks[taskId]);
     const descriptor = this.currentAlgo === 'CSA'
       ? `Antibodi #${candidate.id}${candidate.parentId !== undefined ? ` · parent #${candidate.parentId} · rank ${candidate.rank} · p(mutasi) ${(candidate.mutationRate * 100).toFixed(1)}% · ${candidate.mutatedIndices.length} gen berubah dari parent` : ''}`
+      : state.phase === 'HARMONY_GENERATION' ? 'Kandidat mentah' : state.probe ? 'Probe yang dievaluasi' : state.phase === 'INIT' ? 'Seed HEFT' : 'Best final';
     const cfg = this.formManager.getConfig();
     const vmsPerHost = (cfg.vmDistribution?.small || 0) + (cfg.vmDistribution?.medium || 0) + (cfg.vmDistribution?.large || 0);
     const plan = {
