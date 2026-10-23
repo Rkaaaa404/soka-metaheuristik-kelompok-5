@@ -10,6 +10,7 @@ import id.ac.soka.scheduling.model.*;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.util.*;
 
@@ -46,6 +47,25 @@ public class SimulationWorker {
         int totalHosts = config.datacenters() * config.hostsPerDatacenter();
         String datasetSha256 = repo.getMetadata(config.dataset()).sha256();
 
+        String jobId = System.getProperty("simulation.jobId", UUID.randomUUID().toString());
+        Path resultsRoot = Path.of(System.getProperty("simulation.resultsRoot",
+            SimulationJobService.resolveCachePath().toAbsolutePath().normalize().getParent().toString()));
+        try (ExperimentCsv export = new ExperimentCsv(resultsRoot, jobId, config, datasetSha256)) {
+            try {
+                executeRuns(config, tasks, vms, totalHosts, datasetSha256, export);
+            } catch (Exception e) {
+                try {
+                    export.fail(e);
+                } catch (Exception persistenceError) {
+                    e.addSuppressed(persistenceError);
+                }
+                throw e;
+            }
+        }
+    }
+
+    private static void executeRuns(ScenarioConfig config, List<TaskSpec> tasks, List<VmSpec> vms,
+                                    int totalHosts, String datasetSha256, ExperimentCsv export) throws Exception {
         int totalRuns = config.algorithms().size() * config.runs();
         int completedRuns = 0;
 
@@ -85,6 +105,7 @@ public class SimulationWorker {
 
                 // Energy from decoded schedule
                 DecodedSchedule dec = ScheduleDecoder.decode(tasks, vms, plan, totalHosts);
+                export.append(algo, r, runSeed, metrics, dec.energyJoules());
                 runMetricRecords.add(new RunMetricRecord(r, runSeed, metrics, dec.energyJoules()));
 
                 if (r == 0) {
@@ -107,20 +128,22 @@ public class SimulationWorker {
             results.add(new AlgorithmResult(algo, aggregatedMetrics, runMetricRecords, representativeRun));
         }
 
+        export.complete();
         Map<String, Object> provenance = Map.of(
-            "engine", "CloudSim",
-            "engineVersion", "7.0.1",
+            "engine", ExperimentCsv.ENGINE,
+            "engineVersion", ExperimentCsv.ENGINE_VERSION,
             "dataset", config.dataset(),
             "datasetSha256", datasetSha256,
             "timestampUtc", Instant.now().toString(),
-            "modelRevision", "gocj-v1",
+            "modelRevision", ExperimentCsv.MODEL_REVISION,
             "seed", config.seed()
         );
 
         Map<String, Object> finalPayload = Map.of(
             "scenario", config,
             "provenance", provenance,
-            "results", results
+            "results", results,
+            "exports", export.metadata()
         );
 
         Map<String, Object> resEvent = Map.of(

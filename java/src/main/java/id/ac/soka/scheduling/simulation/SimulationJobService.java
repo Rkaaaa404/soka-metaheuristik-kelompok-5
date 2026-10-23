@@ -9,6 +9,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class SimulationJobService {
@@ -43,15 +44,17 @@ public class SimulationJobService {
     }
 
     public SimulationJobService(Path cachePath) {
-        this.cachePath = cachePath;
+        this.cachePath = cachePath.toAbsolutePath().normalize();
     }
 
-    private static Path resolveCachePath() {
-        Path p = Paths.get("build", "results", "default.json");
-        if (!Files.exists(p.getParent()) && Paths.get("..", "java", "build", "results").toFile().exists()) {
+    static Path resolveCachePath() {
+        if (Files.isDirectory(Paths.get("java", "src", "main"))) {
+            return Paths.get("java", "build", "results", "default.json");
+        }
+        if (Files.isDirectory(Paths.get("..", "java", "src", "main"))) {
             return Paths.get("..", "java", "build", "results", "default.json");
         }
-        return p;
+        return Paths.get("build", "results", "default.json");
     }
 
     public synchronized JobState submitJob(ScenarioConfig config) {
@@ -91,12 +94,18 @@ public class SimulationJobService {
 
     private void startWorkerProcess(JobState job) {
         Thread workerThread = new Thread(() -> {
+            Path directory = cachePath.getParent().resolve(job.jobId);
+            ScheduledExecutorService watchdog = Executors.newSingleThreadScheduledExecutor();
+            AtomicBoolean timedOut = new AtomicBoolean();
+            Map<String, Object> result = null;
+            String terminalStatus = "FAILED";
             try {
                 String javaBin = ProcessHandle.current().info().command().orElse("java");
                 String classPath = System.getProperty("java.class.path");
-
                 ProcessBuilder pb = new ProcessBuilder(
                     javaBin,
+                    "-Dsimulation.jobId=" + job.jobId,
+                    "-Dsimulation.resultsRoot=" + cachePath.getParent(),
                     "-cp",
                     classPath,
                     "id.ac.soka.scheduling.App",
@@ -106,81 +115,125 @@ public class SimulationJobService {
 
                 Process process = pb.start();
                 job.process = process;
-
-                // Send request JSON to stdin
-                try (OutputStream os = process.getOutputStream()) {
-                    byte[] jsonBytes = MAPPER.writeValueAsBytes(job.config);
-                    os.write(jsonBytes);
-                    os.flush();
-                }
-
-                // Read NDJSON output
-                ScheduledExecutorService watchdog = Executors.newSingleThreadScheduledExecutor();
                 watchdog.schedule(() -> {
                     if (process.isAlive()) {
+                        timedOut.set(true);
                         process.destroyForcibly();
-                        job.status = "TIMED_OUT";
-                        job.error = Map.of(
-                            "code", "TIMED_OUT",
-                            "message", "Simulation job timed out after " + TIMEOUT_SECONDS + " seconds."
-                        );
                     }
                 }, TIMEOUT_SECONDS, TimeUnit.SECONDS);
+
+                try (OutputStream os = process.getOutputStream()) {
+                    os.write(MAPPER.writeValueAsBytes(job.config));
+                    os.flush();
+                }
 
                 try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
                     String line;
                     while ((line = reader.readLine()) != null) {
                         if (line.isBlank()) continue;
+                        Map<String, Object> event;
                         try {
                             @SuppressWarnings("unchecked")
-                            Map<String, Object> event = MAPPER.readValue(line, Map.class);
-                            String type = (String) event.get("type");
-                            if ("progress".equals(type)) {
-                                job.completedRuns = (int) event.get("completedRuns");
-                                job.totalRuns = (int) event.get("totalRuns");
-                                job.currentAlgorithm = (String) event.get("currentAlgorithm");
-                                job.currentRun = (int) event.get("currentRun");
-                            } else if ("result".equals(type)) {
-                                @SuppressWarnings("unchecked")
-                                Map<String, Object> data = (Map<String, Object>) event.get("data");
-                                job.result = data;
-                                job.status = "SUCCEEDED";
-
-                                // If default config, cache atomically
-                                if (isDefaultConfig(job.config)) {
-                                    saveDefaultCache(data);
-                                }
-                            } else if ("error".equals(type)) {
-                                job.status = "FAILED";
-                                job.error = Map.of(
-                                    "code", "SIMULATION_FAILED",
-                                    "message", event.getOrDefault("message", "Simulation failed")
-                                );
-                            }
-                        } catch (Exception e) {
-                            // Non-json line, ignore
+                            Map<String, Object> parsed = MAPPER.readValue(line, Map.class);
+                            event = parsed;
+                        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+                            // CloudSim may also write ordinary log lines to stdout.
+                            continue;
+                        }
+                        if (event == null) continue;
+                        String type = (String) event.get("type");
+                        if ("progress".equals(type)) {
+                            job.completedRuns = ((Number) event.get("completedRuns")).intValue();
+                            job.currentAlgorithm = (String) event.get("currentAlgorithm");
+                            job.currentRun = ((Number) event.get("currentRun")).intValue();
+                        } else if ("result".equals(type)) {
+                            @SuppressWarnings("unchecked")
+                            Map<String, Object> data = (Map<String, Object>) event.get("data");
+                            result = data;
+                        } else if ("error".equals(type)) {
+                            job.error = Map.of(
+                                "code", "SIMULATION_FAILED",
+                                "message", event.getOrDefault("message", "Simulation failed")
+                            );
                         }
                     }
                 }
 
                 int exitCode = process.waitFor();
-                watchdog.shutdownNow();
-
-                if (exitCode != 0 && !"SUCCEEDED".equals(job.status) && !"TIMED_OUT".equals(job.status)) {
-                    job.status = "FAILED";
-                    if (job.error == null) {
-                        job.error = Map.of(
-                            "code", "WORKER_CRASHED",
-                            "message", "Simulation worker process exited with code " + exitCode
-                        );
-                    }
+                if (timedOut.get()) {
+                    terminalStatus = "TIMED_OUT";
+                    job.error = Map.of("code", "TIMED_OUT",
+                        "message", "Simulation job timed out after " + TIMEOUT_SECONDS + " seconds.");
+                } else if (exitCode == 0 && result != null && job.error == null && job.completedRuns == job.totalRuns) {
+                    terminalStatus = "SUCCEEDED";
+                } else if (job.error == null) {
+                    job.error = Map.of("code", "WORKER_CRASHED",
+                        "message", "Simulation worker exited with code " + exitCode + " without a complete persisted result.");
                 }
             } catch (Throwable t) {
-                job.status = "FAILED";
-                job.error = Map.of(
-                    "code", "INTERNAL_ERROR",
-                    "message", (t.getMessage() != null) ? t.getMessage() : t.toString()
-                );
+                job.error = Map.of("code", "INTERNAL_ERROR",
+                    "message", (t.getMessage() != null) ? t.getMessage() : t.toString());
+            } finally {
+                watchdog.shutdownNow();
+                Process process = job.process;
+                if (process != null && process.isAlive()) {
+                    process.destroyForcibly();
+                    try {
+                        process.waitFor();
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                }
+                if (timedOut.get()) {
+                    terminalStatus = "TIMED_OUT";
+                    job.error = Map.of("code", "TIMED_OUT",
+                        "message", "Simulation job timed out after " + TIMEOUT_SECONDS + " seconds.");
+                }
+                try {
+                    if (Files.isDirectory(directory)) {
+                        Path statusPath = directory.resolve("status.json");
+                        if (!"SUCCEEDED".equals(terminalStatus) && Files.isRegularFile(statusPath)) {
+                            try {
+                                var persistedStatus = MAPPER.readTree(statusPath.toFile());
+                                if (persistedStatus != null) {
+                                    int persistedRuns = persistedStatus.path("completedRuns").asInt(0);
+                                    job.completedRuns = Math.max(job.completedRuns, Math.min(job.totalRuns, persistedRuns));
+                                }
+                            } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+                                // A killed worker can leave partial JSON. Keep the acknowledged
+                                // count and replace it with the known FAILED/TIMED_OUT state.
+                            }
+                        }
+                        if ("SUCCEEDED".equals(terminalStatus) && !Files.isRegularFile(directory.resolve("metrik.csv"))) {
+                            throw new IOException("Completed experiment has no local metrics CSV: " + directory);
+                        }
+                        ExperimentCsv.writeStatus(directory, job.jobId, terminalStatus, job.completedRuns, job.totalRuns,
+                            job.error == null ? null : String.valueOf(job.error.get("message")));
+                    } else if ("SUCCEEDED".equals(terminalStatus)) {
+                        throw new IOException("Completed experiment has no local export directory: " + directory);
+                    }
+                } catch (IOException e) {
+                    terminalStatus = "FAILED";
+                    job.error = Map.of("code", "PERSISTENCE_FAILED",
+                        "message", "Cannot persist experiment export status: " + e.getMessage());
+                }
+                if ("SUCCEEDED".equals(terminalStatus)) {
+                    job.result = result;
+                    if (isDefaultConfig(job.config)) saveDefaultCache(result);
+                } else {
+                    Map<String, Object> error = new LinkedHashMap<>(job.error == null
+                        ? Map.of("code", "SIMULATION_FAILED", "message", "Experiment did not complete.") : job.error);
+                    error.put("completedRuns", job.completedRuns);
+                    error.put("totalRuns", job.totalRuns);
+                    error.put("note", "Partial exports contain completed runs only, not a successful full experiment. Consult status.json; an interrupted write may leave an incomplete final row.");
+                    if (Files.exists(directory.resolve("metrik.csv"))) {
+                        error.put("exports", Map.of("metricsCsv", directory.resolve("metrik.csv").toString(),
+                            "statusJson", directory.resolve("status.json").toString()));
+                    }
+                    job.error = error;
+                }
+                // Publish terminal state only after the worker exits and export status is persisted.
+                job.status = terminalStatus;
             }
         }, "WorkerThread-" + job.jobId);
 
