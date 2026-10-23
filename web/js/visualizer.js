@@ -42,6 +42,7 @@ export class Visualizer {
     this.canvasContainer = document.getElementById('vis-canvas-container');
     this.backendRunBtn = document.getElementById('vis-backend-run');
     this.backendResultArea = document.getElementById('vis-backend-result');
+    this.fullscreenBtn = document.getElementById('vis-btn-fullscreen');
   }
 
   bindEvents() {
@@ -87,6 +88,37 @@ export class Visualizer {
     if (this.backendRunBtn) {
       this.backendRunBtn.addEventListener('click', () => this.runBackendSimulation?.());
     }
+    if (this.fullscreenBtn) {
+      this.fullscreenBtn.addEventListener('click', () => this.toggleFullscreen());
+    }
+    document.addEventListener('fullscreenchange', () => this.handleFullscreenChange());
+  }
+
+  toggleFullscreen() {
+    const panel = document.getElementById('vis-js-panel');
+    if (!panel) return;
+    if (!document.fullscreenElement) {
+      if (panel.requestFullscreen) {
+        panel.requestFullscreen().catch(() => panel.classList.toggle('is-fullscreen'));
+      } else {
+        panel.classList.toggle('is-fullscreen');
+      }
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch(() => panel.classList.remove('is-fullscreen'));
+      } else {
+        panel.classList.remove('is-fullscreen');
+      }
+    }
+  }
+
+  handleFullscreenChange() {
+    const isFs = !!document.fullscreenElement;
+    if (this.fullscreenBtn) {
+      this.fullscreenBtn.textContent = isFs ? '✕ Keluar Layar Penuh' : '⛶ Layar Penuh';
+    }
+    const panel = document.getElementById('vis-js-panel');
+    panel?.classList.toggle('is-fullscreen', isFs);
   }
 
   updateModeVisibility() {
@@ -128,8 +160,8 @@ export class Visualizer {
     this.pause();
     const revision = ++this.loadRevision;
     const config = this.formManager.getConfig();
-    const requested = Number.parseInt(document.getElementById('vis-sample-n')?.value) || 8;
-    const limit = Math.min(config.taskCount, 30, Math.max(1, requested));
+    const requested = Number.parseInt(document.getElementById('vis-sample-n')?.value) || 20;
+    const limit = Math.min(config.taskCount, Math.max(4, requested));
     this.isLoading = true;
     this.sampleDirty = true;
     this.generator = null;
@@ -325,9 +357,17 @@ export class Visualizer {
     for (const taskId of candidate.taskOrder) tasksByVm[candidate.assignedVm[taskId]].push(this.sampleTasks[taskId]);
     const descriptor = this.currentAlgo === 'CSA'
       ? `Antibodi #${candidate.id}${candidate.parentId !== undefined ? ` · parent #${candidate.parentId} · rank ${candidate.rank} · p(mutasi) ${(candidate.mutationRate * 100).toFixed(1)}% · ${candidate.mutatedIndices.length} gen berubah dari parent` : ''}`
-      : state.phase === 'HARMONY_GENERATION' ? 'Kandidat mentah' : state.probe ? 'Probe yang dievaluasi' : state.phase === 'INIT' ? 'Seed HEFT' : 'Best final';
     const cfg = this.formManager.getConfig();
     const vmsPerHost = (cfg.vmDistribution?.small || 0) + (cfg.vmDistribution?.medium || 0) + (cfg.vmDistribution?.large || 0);
+    const plan = {
+      taskOrder: candidate.taskOrder,
+      assignedVm: candidate.assignedVm,
+      capacityFactors: candidate.capacityFactors
+    };
+    let dec = null;
+    try {
+      dec = decodeSchedule(this.sampleTasks, this.sampleVms, plan, this.totalHosts);
+    } catch (e) {}
     this.canvasContainer.insertAdjacentHTML('afterbegin', `
       <section class="task-flow" aria-label="Pemetaan task ke VM pada fase saat ini">
         <div class="flow-heading">
@@ -359,16 +399,88 @@ export class Visualizer {
           ${previous && changed === 0 ? 'Tidak ada perpindahan task pada langkah ini; token tidak digerakkan secara buatan.' : ''}
           Token berbingkai putus-putus menunggu repair.</p>
         ${state.operations?.length ? `<p class="flow-operations"><strong>Operasi aktual:</strong> ${state.operations.map(escapeHtml).join(' · ')}</p>` : ''}
-        <details class="flow-mapping"><summary>Pemetaan sebelum → sesudah & urutan task</summary>
-          <p>Urutan sebelumnya: ${previous ? previous.taskOrder.map(id => `T${escapeHtml(this.sampleTasks[id].datasetId)}`).join(' → ') : 'Belum ada'}</p>
-          <p>Urutan sekarang: ${candidate.taskOrder.map(id => `T${escapeHtml(this.sampleTasks[id].datasetId)}`).join(' → ')}</p>
-          <div class="matrix-table-wrap"><table class="data-table small-table"><thead><tr><th>Task</th><th>Sebelum</th><th>Sesudah</th><th>Perubahan</th></tr></thead>
-            <tbody>${this.sampleTasks.map(task => {
-              const before = previous?.assignedVm[task.id];
-              const after = candidate.assignedVm[task.id];
-              return `<tr><th>T${escapeHtml(task.datasetId)}</th><td>${before === undefined ? 'Sumber' : `VM ${before}`}</td><td>VM ${after}</td><td>${before === undefined ? 'Awal' : before === after ? 'Tetap' : 'Pindah'}</td></tr>`;
-            }).join('')}</tbody>
-          </table></div>
+        ${dec ? `
+        <div class="gantt-chart-wrap">
+          <div class="gantt-header">
+            <h4>⏱️ Timeline Eksekusi Task (Start → Finish per VM)</h4>
+            <span class="flow-counter">Makespan: <strong>${dec.makespan.toFixed(2)} detik</strong> · ${this.sampleTasks.length} task</span>
+          </div>
+          <div class="gantt-axis">
+            <span>0.00s (Start)</span>
+            <span>${(dec.makespan * 0.25).toFixed(1)}s</span>
+            <span>${(dec.makespan * 0.50).toFixed(1)}s</span>
+            <span>${(dec.makespan * 0.75).toFixed(1)}s</span>
+            <span>${dec.makespan.toFixed(1)}s (Finish)</span>
+          </div>
+          <div class="gantt-rows-container">
+            ${this.sampleVms.map((vm, vIdx) => {
+              const vmTaskList = tasksByVm[vIdx];
+              if (!vmTaskList || vmTaskList.length === 0) return '';
+              return `<div class="gantt-row">
+                <div class="gantt-row-label" title="VM ${vIdx} (DC ${vm.datacenterIndex}, Host ${vm.hostIndex}, ${vm.type})">
+                  <strong>VM ${vIdx}</strong> · DC${vm.datacenterIndex}-H${vm.hostIndex}
+                </div>
+                <div class="gantt-track">
+                  ${vmTaskList.map(t => {
+                    const s = dec.startTimes[t.id];
+                    const f = dec.finishTimes[t.id];
+                    const dur = f - s;
+                    const leftPct = dec.makespan > 0 ? (s / dec.makespan * 100).toFixed(2) : 0;
+                    const widthPct = dec.makespan > 0 ? Math.max(1.8, (dur / dec.makespan * 100)).toFixed(2) : 100;
+                    return `<div class="gantt-bar ${this.currentAlgo === 'CSA' ? 'csa-bar' : 'phs-bar'}"
+                      style="left: ${leftPct}%; width: ${widthPct}%;"
+                      title="Task #${t.id} (ID GoCJ: ${escapeHtml(t.datasetId)})&#10;VM ${vIdx} (${vm.type})&#10;Arrival: ${t.arrivalTime.toFixed(2)}s&#10;Start: ${s.toFixed(2)}s&#10;Finish: ${f.toFixed(2)}s&#10;Durasi: ${dur.toFixed(2)}s">
+                      T${escapeHtml(t.datasetId)}
+                    </div>`;
+                  }).join('')}
+                </div>
+              </div>`;
+            }).join('')}
+          </div>
+        </div>
+        ` : ''}
+        <details class="flow-mapping" open>
+          <summary>📋 Detail Alokasi Seluruh Task (Task 0 sampai Task ${this.sampleTasks.length - 1}) · ${this.sampleTasks.length} Task</summary>
+          <div class="matrix-table-wrap" style="max-height: 360px; overflow-y: auto;">
+            <table class="data-table small-table">
+              <thead>
+                <tr>
+                  <th>Task ID</th>
+                  <th>ID GoCJ</th>
+                  <th>Ukuran (MI)</th>
+                  <th>VM Terpilih</th>
+                  <th>Lokasi Fisik</th>
+                  <th>Waktu Arrival</th>
+                  <th>Waktu Start</th>
+                  <th>Waktu Finish</th>
+                  <th>Durasi Eksekusi</th>
+                  <th>Perubahan</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${this.sampleTasks.map(task => {
+                  const before = previous?.assignedVm[task.id];
+                  const after = candidate.assignedVm[task.id];
+                  const vm = this.sampleVms[after] || {};
+                  const s = dec ? dec.startTimes[task.id] : null;
+                  const f = dec ? dec.finishTimes[task.id] : null;
+                  const dur = s !== null && f !== null ? (f - s).toFixed(2) + ' s' : '-';
+                  return `<tr>
+                    <th>#${task.id}</th>
+                    <td>T${escapeHtml(task.datasetId)}</td>
+                    <td>${task.lengthMi.toLocaleString()} MI</td>
+                    <td><strong>VM ${after}</strong> (${vm.type || ''})</td>
+                    <td>DC ${vm.datacenterIndex !== undefined ? vm.datacenterIndex : '-'} · Host ${vm.hostIndex !== undefined ? vm.hostIndex : '-'}</td>
+                    <td>${task.arrivalTime.toFixed(2)} s</td>
+                    <td>${s !== null ? s.toFixed(2) + ' s' : '-'}</td>
+                    <td>${f !== null ? f.toFixed(2) + ' s' : '-'}</td>
+                    <td>${dur}</td>
+                    <td>${before === undefined ? 'Awal' : before === after ? 'Tetap' : `<span style="color:#176b60; font-weight:700;">VM ${before} → VM ${after}</span>`}</td>
+                  </tr>`;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
         </details>
       </section>`);
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -534,7 +646,8 @@ export class Visualizer {
       </div>
 
       <div class="allocation-table-wrap">
-        <h4>Pemetaan Alokasi Task → VM Nyata (50 task pertama)</h4>
+        <h4>Pemetaan Alokasi Task → VM Nyata (${rep.allocations.length} task)</h4>
+        <div class="matrix-table-wrap" style="max-height: 420px; overflow-y: auto;">
         <table class="data-table">
           <thead>
             <tr>
@@ -550,7 +663,7 @@ export class Visualizer {
             </tr>
           </thead>
           <tbody>
-            ${rep.allocations.slice(0, 50).map(a => `
+            ${rep.allocations.map(a => `
               <tr>
                 <td>#${a.taskId}</td>
                 <td>VM ${a.vmId}</td>
@@ -565,6 +678,7 @@ export class Visualizer {
             `).join('')}
           </tbody>
         </table>
+        </div>
       </div>
     `;
 

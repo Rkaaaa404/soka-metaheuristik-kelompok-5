@@ -117,7 +117,7 @@ public class SimulationHttpApi {
                         }
                     } catch (Exception ignored) {}
                 }
-                limit = Math.max(1, Math.min(30, limit));
+                limit = Math.max(1, Math.min(10000, limit));
 
                 try {
                     List<TaskSpec> tasks = repo.loadTasks(filename, limit);

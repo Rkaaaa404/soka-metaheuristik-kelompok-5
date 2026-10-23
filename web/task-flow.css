@@ -56,3 +56,112 @@
 @media (prefers-reduced-motion: reduce) {
   .task-flow *, .task-flow *::before, .task-flow *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
+
+/* Fullscreen visualizer styles */
+#vis-js-panel:fullscreen,
+#vis-js-panel.is-fullscreen {
+  background: #fffef9;
+  padding: 26px 36px;
+  overflow-y: auto;
+  width: 100vw;
+  height: 100vh;
+  box-sizing: border-box;
+  z-index: 99999;
+}
+#vis-js-panel:fullscreen .flow-vm-grid,
+#vis-js-panel.is-fullscreen .flow-vm-grid {
+  max-height: 520px;
+}
+#vis-js-panel:fullscreen .gantt-rows-container,
+#vis-js-panel.is-fullscreen .gantt-rows-container {
+  max-height: 550px;
+}
+
+/* Gantt Chart Timeline (Start to Finish) */
+.gantt-chart-wrap {
+  margin-top: 18px;
+  border: 1px solid #c6d7cd;
+  border-radius: 12px;
+  background: #ffffff;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+}
+.gantt-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.gantt-header h4 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #176b60;
+}
+.gantt-axis {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  color: #526760;
+  padding: 0 0 6px 150px;
+  border-bottom: 1px dashed #c6d7cd;
+  margin-bottom: 8px;
+}
+.gantt-rows-container {
+  max-height: 440px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 6px;
+}
+.gantt-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 6px;
+  min-height: 26px;
+}
+.gantt-row-label {
+  width: 150px;
+  flex-shrink: 0;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: #1f2e29;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-right: 8px;
+}
+.gantt-track {
+  position: relative;
+  flex-grow: 1;
+  height: 22px;
+  background: #edf4ed;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid #dbe6de;
+}
+.gantt-bar {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  border-radius: 4px;
+  background: #176b60;
+  color: #ffffff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  transition: transform 0.15s ease, filter 0.15s ease;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+}
+.gantt-bar:hover {
+  filter: brightness(1.2);
+  transform: scaleY(1.1);
+  z-index: 10;
+}
