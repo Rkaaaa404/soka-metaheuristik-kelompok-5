@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="id.ac.soka.scheduling.SimulationSemanticsTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-23T08:33:48.094Z" hostname="RKAAAA3400" time="0.029">
-  <properties/>
-  <testcase name="testPhsCapacityFactorHalf()" classname="id.ac.soka.scheduling.SimulationSemanticsTest" time="0.024"/>
-  <testcase name="testMultiPeConcurrentExecution()" classname="id.ac.soka.scheduling.SimulationSemanticsTest" time="0.001"/>
-  <testcase name="testPhysicalSemanticsFixture()" classname="id.ac.soka.scheduling.SimulationSemanticsTest" time="0.002"/>
-  <system-out><![CDATA[]]></system-out>
-  <system-err><![CDATA[]]></system-err>
-</testsuite>
