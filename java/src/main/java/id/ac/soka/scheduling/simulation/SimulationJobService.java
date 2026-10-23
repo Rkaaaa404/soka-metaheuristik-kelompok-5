@@ -86,7 +86,12 @@ public class SimulationJobService {
                 byte[] bytes = Files.readAllBytes(cachePath);
                 @SuppressWarnings("unchecked")
                 Map<String, Object> cached = MAPPER.readValue(bytes, Map.class);
-                return cached;
+                if (cached != null && cached.containsKey("scenario")) {
+                    ScenarioConfig cachedScenario = MAPPER.convertValue(cached.get("scenario"), ScenarioConfig.class);
+                    if (cachedScenario != null && isDefaultConfig(cachedScenario)) {
+                        return cached;
+                    }
+                }
             } catch (Exception ignored) {}
         }
         return null;

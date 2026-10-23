@@ -151,10 +151,13 @@ export class EvaluationManager {
   }
 
   renderTable({ scenario, provenance, results, exports }, cached) {
+    const dist = scenario.vmDistribution || { small: 0, medium: 0, large: 0 };
+    const vmsPerHost = dist.small + dist.medium + dist.large;
+    const totalVms = scenario.datacenters * scenario.hostsPerDatacenter * vmsPerHost;
     this.provenanceInfo.innerHTML = `<div class="provenance-bar">
       <span><strong>${escape(provenance.engine)} ${escape(provenance.engineVersion)}</strong> · ${cached ? 'cache run nyata' : 'eksperimen baru'}</span>
       <span>${escape(provenance.dataset)} · ${scenario.taskCount} task · ${scenario.runs} run · seed ${scenario.seed}</span>
-      <span>${scenario.datacenters} DC · ${scenario.hostsPerDatacenter} host/DC · ${scenario.vmsPerDatacenter} VM/DC</span>
+      <span>${scenario.datacenters} DC · ${scenario.hostsPerDatacenter} host/DC · ${vmsPerHost} VM/host (${totalVms} VM total)</span>
       <span>${escape(provenance.timestampUtc)}</span>
       <span>SHA-256 dataset: <code>${escape(provenance.datasetSha256 || provenance.datasetSha256Hash || '')}</code></span>
       ${exports?.metricsCsv ? `<span>CSV lokal: <code>${escape(exports.metricsCsv)}</code></span>` : ''}

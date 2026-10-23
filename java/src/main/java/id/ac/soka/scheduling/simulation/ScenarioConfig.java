@@ -43,15 +43,19 @@ public record ScenarioConfig(
         @JsonProperty("phs") AlgorithmOptions.PhsOptions phs
     ) {
         int tasks = taskCount != null ? taskCount : 1000;
+        int dcs = datacenters != null ? datacenters : 2;
+        int hosts = hostsPerDatacenter != null ? hostsPerDatacenter : 5;
+        VmDistribution dist = vmDistribution != null ? vmDistribution : new VmDistribution(2, 2, 1);
+        int vmsPerDc = hosts * dist.total();
         String defaultDataset = "GoCJ_Dataset_" + tasks + ".csv";
         return new ScenarioConfig(
             dataset != null && !dataset.isBlank() ? dataset : defaultDataset,
             algorithms != null ? algorithms : List.of("CSA", "PHS", "FCFS", "RR", "SJF", "MinMin", "MaxMin"),
             tasks,
-            datacenters != null ? datacenters : 2,
-            hostsPerDatacenter != null ? hostsPerDatacenter : 5,
-            vmDistribution != null ? vmDistribution.total() : 5,
-            vmDistribution != null ? vmDistribution : new VmDistribution(2, 2, 1),
+            dcs,
+            hosts,
+            vmsPerDc,
+            dist,
             runs != null ? runs : 5,
             seed != null ? seed : 42L,
             csa != null ? csa : AlgorithmOptions.CsaOptions.defaults(),
@@ -64,6 +68,7 @@ public record ScenarioConfig(
         if (algorithms == null) algorithms = List.of("CSA", "PHS", "FCFS", "RR", "SJF", "MinMin", "MaxMin");
         else algorithms = List.copyOf(algorithms);
         if (vmDistribution == null) vmDistribution = new VmDistribution(2, 2, 1);
+        vmsPerDatacenter = hostsPerDatacenter * vmDistribution.total();
         if (csa == null) csa = AlgorithmOptions.CsaOptions.defaults();
         if (phs == null) phs = AlgorithmOptions.PhsOptions.defaults();
 

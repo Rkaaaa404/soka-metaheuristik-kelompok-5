@@ -63,7 +63,7 @@ export class ScenarioFormManager {
         </div>
 
         <div class="form-group full-width">
-          <label>Komposisi VM per Datacenter:</label>
+          <label>Komposisi VM per Host:</label>
           <div class="vm-dist-row">
             <div class="vm-badge-input badge-small">
               <span>Small (500 MIPS, 1 PE)</span>
@@ -277,7 +277,8 @@ export class ScenarioFormManager {
   getConfig() {
     const cfg = JSON.parse(JSON.stringify(this.state));
     cfg.dataset = `GoCJ_Dataset_${cfg.taskCount}.csv`;
-    cfg.vmsPerDatacenter = cfg.vmDistribution.small + cfg.vmDistribution.medium + cfg.vmDistribution.large;
+    const vmsPerHost = cfg.vmDistribution.small + cfg.vmDistribution.medium + cfg.vmDistribution.large;
+    cfg.vmsPerDatacenter = cfg.hostsPerDatacenter * vmsPerHost;
     return cfg;
   }
 }

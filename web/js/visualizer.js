@@ -169,20 +169,19 @@ export class Visualizer {
     let id = 0;
     const dist = config.vmDistribution;
     for (let dc = 0; dc < config.datacenters; dc++) {
-      for (let s = 0; s < dist.small; s++) {
-        this.sampleVms.push({ id: id++, datacenterIndex: dc, hostIndex: 0, type: 'Small', nominalMips: 500, pes: 1 });
-      }
-      for (let m = 0; m < dist.medium; m++) {
-        this.sampleVms.push({ id: id++, datacenterIndex: dc, hostIndex: 0, type: 'Medium', nominalMips: 1000, pes: 2 });
-      }
-      for (let l = 0; l < dist.large; l++) {
-        this.sampleVms.push({ id: id++, datacenterIndex: dc, hostIndex: 0, type: 'Large', nominalMips: 2000, pes: 4 });
+      for (let h = 0; h < config.hostsPerDatacenter; h++) {
+        for (let s = 0; s < dist.small; s++) {
+          this.sampleVms.push({ id: id++, datacenterIndex: dc, hostIndex: h, type: 'Small', nominalMips: 500, pes: 1 });
+        }
+        for (let m = 0; m < dist.medium; m++) {
+          this.sampleVms.push({ id: id++, datacenterIndex: dc, hostIndex: h, type: 'Medium', nominalMips: 1000, pes: 2 });
+        }
+        for (let l = 0; l < dist.large; l++) {
+          this.sampleVms.push({ id: id++, datacenterIndex: dc, hostIndex: h, type: 'Large', nominalMips: 2000, pes: 4 });
+        }
       }
     }
     if (this.sampleVms.length === 0) throw new Error('Skenario memerlukan setidaknya satu VM.');
-    for (const vm of this.sampleVms) {
-      vm.hostIndex = (vm.id % config.vmsPerDatacenter) % config.hostsPerDatacenter;
-    }
     this.totalHosts = config.datacenters * config.hostsPerDatacenter;
   }
 

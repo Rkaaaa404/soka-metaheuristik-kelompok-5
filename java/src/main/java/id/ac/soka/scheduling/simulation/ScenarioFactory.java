@@ -57,49 +57,39 @@ public class ScenarioFactory {
 
         int currentVmId = 0;
         for (int dc = 0; dc < config.datacenters(); dc++) {
-            HostResource[] hosts = new HostResource[config.hostsPerDatacenter()];
-            for (int h = 0; h < hosts.length; h++) {
-                hosts[h] = new HostResource();
-            }
+            for (int h = 0; h < config.hostsPerDatacenter(); h++) {
+                HostResource host = new HostResource();
+                List<VmTemplate> templates = new ArrayList<>(config.vmDistribution().total());
+                for (int i = 0; i < config.vmDistribution().small(); i++) {
+                    templates.add(new VmTemplate("Small", SMALL_MIPS, SMALL_PES, SMALL_RAM, SMALL_BW, SMALL_STORAGE));
+                }
+                for (int i = 0; i < config.vmDistribution().medium(); i++) {
+                    templates.add(new VmTemplate("Medium", MEDIUM_MIPS, MEDIUM_PES, MEDIUM_RAM, MEDIUM_BW, MEDIUM_STORAGE));
+                }
+                for (int i = 0; i < config.vmDistribution().large(); i++) {
+                    templates.add(new VmTemplate("Large", LARGE_MIPS, LARGE_PES, LARGE_RAM, LARGE_BW, LARGE_STORAGE));
+                }
 
-            // Order within DC: Small, then Medium, then Large
-            List<VmTemplate> templates = new ArrayList<>(config.vmsPerDatacenter());
-            for (int i = 0; i < config.vmDistribution().small(); i++) {
-                templates.add(new VmTemplate("Small", SMALL_MIPS, SMALL_PES, SMALL_RAM, SMALL_BW, SMALL_STORAGE));
-            }
-            for (int i = 0; i < config.vmDistribution().medium(); i++) {
-                templates.add(new VmTemplate("Medium", MEDIUM_MIPS, MEDIUM_PES, MEDIUM_RAM, MEDIUM_BW, MEDIUM_STORAGE));
-            }
-            for (int i = 0; i < config.vmDistribution().large(); i++) {
-                templates.add(new VmTemplate("Large", LARGE_MIPS, LARGE_PES, LARGE_RAM, LARGE_BW, LARGE_STORAGE));
-            }
-
-            for (VmTemplate tmpl : templates) {
-                int assignedHost = -1;
-                for (int h = 0; h < hosts.length; h++) {
-                    if (hosts[h].canAccommodate(tmpl.pes, tmpl.ram, tmpl.bw, tmpl.storage)) {
-                        hosts[h].allocate(tmpl.pes, tmpl.ram, tmpl.bw, tmpl.storage);
-                        assignedHost = h;
-                        break;
+                for (VmTemplate tmpl : templates) {
+                    if (!host.canAccommodate(tmpl.pes, tmpl.ram, tmpl.bw, tmpl.storage)) {
+                        throw new InsufficientCapacityException(
+                            "INSUFFICIENT_CAPACITY: Host " + h + " in Datacenter " + dc +
+                            " cannot accommodate VM " + currentVmId + " (" + tmpl.type + ")."
+                        );
                     }
+                    host.allocate(tmpl.pes, tmpl.ram, tmpl.bw, tmpl.storage);
+                    vms.add(new VmSpec(
+                        currentVmId++,
+                        dc,
+                        h,
+                        tmpl.type,
+                        tmpl.nominalMips,
+                        tmpl.pes,
+                        tmpl.ram,
+                        tmpl.bw,
+                        tmpl.storage
+                    ));
                 }
-                if (assignedHost == -1) {
-                    throw new InsufficientCapacityException(
-                        "INSUFFICIENT_CAPACITY: Datacenter " + dc + " cannot accommodate VM " +
-                        currentVmId + " (" + tmpl.type + ") across its " + config.hostsPerDatacenter() + " hosts."
-                    );
-                }
-                vms.add(new VmSpec(
-                    currentVmId++,
-                    dc,
-                    assignedHost,
-                    tmpl.type,
-                    tmpl.nominalMips,
-                    tmpl.pes,
-                    tmpl.ram,
-                    tmpl.bw,
-                    tmpl.storage
-                ));
             }
         }
         return vms;
