@@ -99,8 +99,27 @@ Buka browser dan arahkan ke:
 * **Slide 1:** Profil Kelompok 5 dan pengenalan topik.
 * **Slide 2:** Konsep NP-Hard cloud task scheduling, trade-off eksplorasi-eksploitasi, dan diagram hierarki sumber daya.
 * **Slide 3:** Teori mendalam CSA & PHS, formula, sitasi langsung ke PDF lokal di `/docs/`, dan komparasi paper vs adaptasi.
-* **Slide 4:** Simulator interaktif bergaya **VisuAlgo** (Step-by-step JS generator) untuk memeriksa mutasi, kloning, dual memory, serta mode eksekusi CloudSim backend.
-* **Slide 5:** Tabel evaluasi komprehensif 7 algoritma $\times$ 9 metrik hasil simulasi CloudSim 7 nyata (dilengkapi status sinkronisasi form, progress real-time, dan *allocation timeline*).
+* **Slide 4:** Demo live dengan token task yang berpindah ke VM sesuai kandidat algoritma, penjelasan eksplorasi/eksploitasi, perubahan kapasitas PHS, serta pemetaan sebelum/sesudah. Animasi menunjukkan perubahan solusi optimasi, bukan migrasi cloudlet saat runtime. Mode backend menjalankan **seluruh tujuh algoritma** dengan jumlah run sesuai form.
+* **Slide 5:** Langsung membaca eksperimen yang dijalankan dari slide 4, tanpa simulasi ulang. Tabel menampilkan sembilan metrik, mean ± simpangan baku, nilai terbaik termasuk seri, dan analisis menurut tujuan (makespan, biaya, keseimbangan, overhead). Hasil lama tetap tersedia ketika run gagal dan ditandai bila konfigurasi berubah.
+* **Tampilan:** Palet cream hangat, ink dan teal; layout pitch deck responsif. Tabel lebar bergeser di dalam panel, bukan membuat halaman melebar. Reduced-motion menonaktifkan animasi perpindahan.
+* **Demo vs eksperimen:** Demo memakai subset GoCJ nyata (maksimum 30 task) dan budget optimasi ringkas yang tertulis pada visualisasi. Kegagalan pemuatan dataset tidak diganti data sintetis. Perubahan konfigurasi menghentikan playback dan meminta Reset. Mode backend tetap memakai seluruh N task dan budget konfigurasi.
+
+### 3. Catatan eksperimen lokal
+
+Setiap eksperimen baru menyimpan hasil secara otomatis:
+
+```text
+java/build/results/<jobId>/metrik.csv
+java/build/results/<jobId>/status.json
+```
+
+Lokasi absolut CSV ditampilkan di slide 5 dan respons API `result.exports.metricsCsv`. Tidak perlu mengunduh melalui browser; file sudah berada di komputer yang menjalankan backend. Satu baris CSV mewakili satu algoritma × satu run, berisi sembilan metrik, seed, dataset/hash SHA-256, engine/version, timestamp, serta konfigurasi lengkap dalam kolom `scenarioJson`. Nama metrik mengikuti API; satuan tercantum pada tabel metrik di atas.
+
+CSV ditulis dan di-flush setelah setiap run CloudSim selesai. Hasil parsial tetap disimpan ketika eksperimen gagal atau timeout; periksa `status.json`: hanya `status: SUCCEEDED` dan `complete: true` menandakan seluruh eksperimen selesai. Setiap job memakai direktori berbeda, tidak menimpa eksperimen sebelumnya. Cache default yang dibaca ulang bukan run baru dan tidak menghasilkan CSV baru.
+
+Kolom energi tambahan memiliki `energySource=decoded-schedule-estimate`: energi tersebut merupakan estimasi decoder, **bukan pengukuran energi CloudSim**. Sembilan metrik evaluasi berasal dari jalur simulasi CloudSim; scheduling time mengukur waktu komputasi scheduler.
+
+Verifikasi perubahan: `test installDist` lulus (15 test); smoke browser menjalankan 8 task × 2 run × 7 algoritma sampai 14/14. Seluruh 126 nilai metrik CSV cocok dengan respons API. Tampilan diperiksa pada lebar 1366, 768, dan 390 px; demo CSA/PHS dijalankan sampai fase selesai.
 
 ---
 

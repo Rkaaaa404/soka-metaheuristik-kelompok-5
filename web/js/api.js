@@ -45,6 +45,7 @@ export const Api = {
   async fetchDefaultResult() {
     const res = await fetch('/api/default-result');
     const data = await res.json();
+    if (!res.ok) throw new Error(data.error?.message || `Default experiment failed (${res.status})`);
     return { status: res.status, data };
   }
 };

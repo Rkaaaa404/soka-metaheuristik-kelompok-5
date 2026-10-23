@@ -3,6 +3,10 @@ import { phsStepGenerator } from './algorithms/phs.js';
 import { decodeSchedule } from './algorithms/decoder.js';
 import { Api } from './api.js';
 
+const escapeHtml = value => String(value).replace(/[&<>"']/g, character => ({
+  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+}[character]));
+
 export class Visualizer {
   constructor(formManager) {
     this.formManager = formManager;
@@ -16,6 +20,12 @@ export class Visualizer {
     this.sampleVms = [];
     this.generator = null;
     this.lastState = null;
+    this.loadRevision = 0;
+    this.sampleDirty = true;
+    this.isLoading = false;
+    this.displayedCandidate = null;
+    this.animations = [];
+    this.backendResult = null;
 
     this.initElements();
     this.bindEvents();
@@ -27,8 +37,9 @@ export class Visualizer {
     this.resetBtn = document.getElementById('vis-btn-reset');
     this.speedSelect = document.getElementById('vis-speed-select');
     this.statusMsg = document.getElementById('vis-status-msg');
+    this.statusMsg?.setAttribute('role', 'status');
+    this.statusMsg?.setAttribute('aria-live', 'polite');
     this.canvasContainer = document.getElementById('vis-canvas-container');
-    this.timelineContainer = document.getElementById('vis-timeline-container');
     this.backendRunBtn = document.getElementById('vis-backend-run');
     this.backendResultArea = document.getElementById('vis-backend-result');
   }
@@ -51,6 +62,7 @@ export class Visualizer {
         e.target.classList.add('active');
         this.currentAlgo = e.target.dataset.algo;
         this.reset();
+        if (this.backendResult) this.renderBackendResult(this.backendResult);
       });
     });
 
@@ -64,9 +76,16 @@ export class Visualizer {
         this.play();
       }
     });
+    document.getElementById('vis-sample-n')?.addEventListener('input', () => this.invalidate());
+    // Delegation also catches advanced inputs, whose form callbacks may not fire.
+    for (const id of ['slide-4-form-container', 'slide-5-form-container']) {
+      const form = document.getElementById(id);
+      form?.addEventListener('input', () => this.invalidate());
+      form?.addEventListener('change', () => this.invalidate());
+    }
 
     if (this.backendRunBtn) {
-      this.backendRunBtn.addEventListener('click', () => this.runBackendSimulation());
+      this.backendRunBtn.addEventListener('click', () => this.runBackendSimulation?.());
     }
   }
 
@@ -83,37 +102,73 @@ export class Visualizer {
     }
   }
 
-  async loadSampleData() {
-    const config = this.formManager.getConfig();
-    const limit = Math.min(30, Math.max(4, parseInt(document.getElementById('vis-sample-n')?.value) || 8));
-    try {
-      const resp = await Api.fetchDatasetTasks(config.dataset, limit);
-      this.sampleTasks = resp.tasks.map(t => ({
-        id: t.id,
-        lengthMi: t.lengthMi,
-        sla: t.sla,
-        arrivalTime: t.arrivalTime
-      }));
-    } catch (e) {
-      // Fallback synthetic if offline
-      this.sampleTasks = Array.from({ length: limit }, (_, i) => ({
-        id: i,
-        lengthMi: 10000 + (i * 5000),
-        sla: (i % 3) + 1,
-        arrivalTime: i * 0.5
-      }));
-    }
+  invalidate() {
+    this.pause();
+    this.loadRevision++;
+    this.sampleDirty = true;
+    this.isLoading = false;
+    this.generator = null;
+    this.lastState = null;
+    this.displayedCandidate = null;
+    this.animations.forEach(animation => animation.cancel());
+    this.animations = [];
+    if (this.statusMsg) this.statusMsg.textContent = 'Konfigurasi berubah. Tekan Reset untuk memuat sampel dan memulai ulang.';
+    if (this.canvasContainer) this.canvasContainer.innerHTML = '';
+    this.updatePlaybackControls();
+  }
 
-    // Build sample VMs
-    this.buildSampleVms(config);
-    this.reset();
+  updatePlaybackControls() {
+    const disabled = this.isLoading || this.sampleDirty || !this.generator;
+    if (this.stepBtn) this.stepBtn.disabled = disabled;
+    if (this.playBtn) this.playBtn.disabled = disabled;
+    if (this.resetBtn) this.resetBtn.disabled = this.isLoading;
+  }
+
+  async loadSampleData() {
+    this.pause();
+    const revision = ++this.loadRevision;
+    const config = this.formManager.getConfig();
+    const requested = Number.parseInt(document.getElementById('vis-sample-n')?.value) || 8;
+    const limit = Math.min(config.taskCount, 30, Math.max(1, requested));
+    this.isLoading = true;
+    this.sampleDirty = true;
+    this.generator = null;
+    this.updatePlaybackControls();
+    if (this.statusMsg) this.statusMsg.textContent = `Memuat ${limit} task asli dari ${config.dataset}…`;
+    try {
+      if (!this.formManager.isValid()) throw new Error('Periksa konfigurasi dan distribusi VM.');
+      const resp = await Api.fetchDatasetTasks(config.dataset, limit);
+      if (revision !== this.loadRevision) return;
+      if (!Array.isArray(resp.tasks) || resp.tasks.length === 0) throw new Error('Dataset tidak mengembalikan task.');
+      // The decoder uses dense task indices; retain dataset IDs separately for labels.
+      this.sampleTasks = resp.tasks.map((task, index) => ({
+        id: index,
+        datasetId: task.id,
+        lengthMi: task.lengthMi,
+        sla: task.sla,
+        arrivalTime: task.arrivalTime
+      }));
+      this.sampleDirty = false;
+      this.isLoading = false;
+      await this.reset();
+    } catch (error) {
+      if (revision !== this.loadRevision) return;
+      this.sampleTasks = [];
+      this.sampleVms = [];
+      this.generator = null;
+      this.sampleDirty = true;
+      this.isLoading = false;
+      if (this.canvasContainer) this.canvasContainer.innerHTML = '';
+      if (this.statusMsg) this.statusMsg.textContent = `Sampel tidak tersedia: ${error.message} Tidak ada data sintetis. Tekan Reset untuk mencoba lagi.`;
+      this.updatePlaybackControls();
+    }
   }
 
   buildSampleVms(config) {
     this.sampleVms = [];
     let id = 0;
     const dist = config.vmDistribution;
-    for (let dc = 0; dc < Math.min(2, config.datacenters); dc++) {
+    for (let dc = 0; dc < config.datacenters; dc++) {
       for (let s = 0; s < dist.small; s++) {
         this.sampleVms.push({ id: id++, datacenterIndex: dc, hostIndex: 0, type: 'Small', nominalMips: 500, pes: 1 });
       }
@@ -124,16 +179,24 @@ export class Visualizer {
         this.sampleVms.push({ id: id++, datacenterIndex: dc, hostIndex: 0, type: 'Large', nominalMips: 2000, pes: 4 });
       }
     }
-    if (this.sampleVms.length === 0) {
-      this.sampleVms.push({ id: 0, datacenterIndex: 0, hostIndex: 0, type: 'Medium', nominalMips: 1000, pes: 1 });
+    if (this.sampleVms.length === 0) throw new Error('Skenario memerlukan setidaknya satu VM.');
+    for (const vm of this.sampleVms) {
+      vm.hostIndex = (vm.id % config.vmsPerDatacenter) % config.hostsPerDatacenter;
     }
+    this.totalHosts = config.datacenters * config.hostsPerDatacenter;
   }
 
-  reset() {
+  async reset() {
     this.pause();
+    if (this.isLoading) return;
+    if (this.sampleDirty || this.sampleTasks.length === 0) return this.loadSampleData();
     const config = this.formManager.getConfig();
     this.buildSampleVms(config);
-
+    this.displayedCandidate = null;
+    this.lastState = null;
+    this.animations.forEach(animation => animation.cancel());
+    this.animations = [];
+    if (this.canvasContainer) this.canvasContainer.innerHTML = '';
     if (this.currentAlgo === 'CSA') {
       const opts = {
         population: 6,
@@ -142,16 +205,17 @@ export class Visualizer {
         beta: 1.0,
         timeWeight: config.csa.timeWeight
       };
-      this.generator = csaStepGenerator(this.sampleTasks, this.sampleVms, opts, config.seed, 2);
+      this.generator = csaStepGenerator(this.sampleTasks, this.sampleVms, opts, config.seed, this.totalHosts);
     } else {
       const opts = {
         memorySize: 4,
         iterations: 10,
         improvisations: 3
       };
-      this.generator = phsStepGenerator(this.sampleTasks, this.sampleVms, opts, config.seed, 2);
+      this.generator = phsStepGenerator(this.sampleTasks, this.sampleVms, opts, config.seed, this.totalHosts);
     }
 
+    this.updatePlaybackControls();
     this.step();
   }
 
@@ -160,6 +224,8 @@ export class Visualizer {
     const res = this.generator.next();
     if (res.done) {
       this.pause();
+      this.generator = null;
+      this.updatePlaybackControls();
       if (this.statusMsg) this.statusMsg.textContent = "Simulasi interaktif selesai.";
       return;
     }
@@ -177,8 +243,9 @@ export class Visualizer {
   }
 
   play() {
+    if (!this.generator || this.isPlaying || this.sampleDirty || this.isLoading) return;
     this.isPlaying = true;
-    if (this.playBtn) this.playBtn.textContent = 'Pause ⏸';
+    if (this.playBtn) this.playBtn.textContent = 'Jeda';
     const interval = 1200 / this.speed;
     this.playTimer = setInterval(() => {
       this.step();
@@ -187,7 +254,7 @@ export class Visualizer {
 
   pause() {
     this.isPlaying = false;
-    if (this.playBtn) this.playBtn.textContent = 'Play ▶';
+    if (this.playBtn) this.playBtn.textContent = 'Putar';
     if (this.playTimer) {
       clearInterval(this.playTimer);
       this.playTimer = null;
@@ -195,6 +262,12 @@ export class Visualizer {
   }
 
   renderState(state) {
+    const previousPositions = new Map();
+    this.canvasContainer?.querySelectorAll('[data-flow-task]').forEach(token => {
+      previousPositions.set(Number(token.dataset.flowTask), token.getBoundingClientRect());
+    });
+    this.animations.forEach(animation => animation.cancel());
+    this.animations = [];
     if (this.statusMsg) {
       this.statusMsg.textContent = state.message;
     }
@@ -204,6 +277,114 @@ export class Visualizer {
     } else {
       this.renderPhsView(state);
     }
+    const candidate = state.probe || state.candidate || state.best;
+    if (candidate) {
+      this.renderTaskFlow(state, candidate, previousPositions);
+      const valid = candidate.assignedVm.every(vm => candidate.capacityFactors[vm] > 0);
+      this.displayedCandidate = candidate;
+    }
+  }
+
+  phaseExplanation(state) {
+    if (this.currentAlgo === 'CSA') {
+      const phases = {
+        INIT: ['Exploration', 'Penempatan acak membuka beberapa wilayah ruang solusi. Token menampilkan antibodi awal #0, bukan otomatis best.'],
+        SELECTION: ['Exploitation', 'Parent dengan fitness terendah diprioritaskan. Token beralih ke parent peringkat pertama; ini pemilihan solusi, bukan mutasi.'],
+        CLONING: ['Exploitation', 'Parent terbaik diperbanyak tanpa mengubah pemetaan. Token sengaja tetap: kloning belum memindahkan task.'],
+        MUTATION: ['Exploration + exploitation', 'Clone parent berafinitas rendah menjelajah lebih jauh; parent terbaik dipertajam dengan mutasi lebih kecil. Ditampilkan clone dengan perubahan terbanyak dalam batch, bukan best-so-far.'],
+        SURVIVOR: ['Exploitation', 'Parent dan clone bersaing berdasarkan fitness. Token menunjukkan penyintas teratas; archive tetap menyimpan trade-off makespan–energi.'],
+        FINISHED: ['Solusi terpilih', 'Optimasi berakhir. Baru di fase ini token menunjukkan solusi final terbaik dari Pareto archive.']
+      };
+      return phases[state.phase];
+    }
+    if (state.phase === 'HARMONY_GENERATION') {
+      const memoryOnly = state.scheduleMethod === 'HM Memory Copy' && state.resourceMethod === 'Resource HM Copy';
+      return [memoryOnly ? 'Exploitation' : 'Exploration + memory',
+        `Jadwal: ${state.scheduleMethod}; resource: ${state.resourceMethod}. Cabang acak menjelajah, salinan HM memakai pengalaman, crossbreed menggabungkan keduanya. Token menunjukkan kandidat mentah sebelum repair.`];
+    }
+    const phases = {
+      INIT: ['Exploration + seed', 'Seed HEFT memberi titik awal terarah, sementara entri acak menjaga keragaman. Token menampilkan seed; kedua Harmony Memory tetap terlihat di bawah.'],
+      IMPROVISATION_AND_REPAIR: ['Exploitation lokal', `Ritme ${state.rhythm} memperbaiki kandidat: Schedule mengubah urutan/penempatan; Resource mengubah faktor kapasitas. Repair memindahkan task dari VM nonaktif ke VM aktif.`],
+      MEMORY_UPDATE: ['Seleksi memory', state.accepted
+        ? 'Probe diterima menggantikan entri terburuk di memory ritme aktif. Token tetap menunjukkan probe yang baru dievaluasi.'
+        : 'Probe ditolak karena tidak mengalahkan entri terburuk. Token tetap menunjukkan probe yang ditolak agar keputusan terlihat; HM dan best tidak dipalsukan.'],
+      FINISHED: ['Solusi terpilih', 'Token beralih ke best-so-far akhir. Jadwal, kapasitas aktif, dan urutan task ini dipakai bersama oleh decoder.']
+    };
+    return phases[state.phase];
+  }
+
+  renderTaskFlow(state, candidate, previousPositions) {
+    if (!this.canvasContainer) return;
+    const previous = this.displayedCandidate;
+    const [mode, explanation] = this.phaseExplanation(state);
+    const changed = candidate.assignedVm.reduce((count, vm, index) =>
+      count + (previous && previous.assignedVm[index] !== vm ? 1 : 0), 0);
+    const changedCapacity = previous ? candidate.capacityFactors.reduce((count, capacity, index) =>
+      count + (capacity !== previous.capacityFactors[index] ? 1 : 0), 0) : 0;
+    const orderChanged = previous && candidate.taskOrder.some((task, index) => previous.taskOrder[index] !== task);
+    const tasksByVm = this.sampleVms.map(() => []);
+    for (const taskId of candidate.taskOrder) tasksByVm[candidate.assignedVm[taskId]].push(this.sampleTasks[taskId]);
+    const descriptor = this.currentAlgo === 'CSA'
+      ? `Antibodi #${candidate.id}${candidate.parentId !== undefined ? ` · parent #${candidate.parentId} · rank ${candidate.rank} · p(mutasi) ${(candidate.mutationRate * 100).toFixed(1)}% · ${candidate.mutatedIndices.length} gen berubah dari parent` : ''}`
+      : state.phase === 'HARMONY_GENERATION' ? 'Kandidat mentah' : state.probe ? 'Probe yang dievaluasi' : state.phase === 'INIT' ? 'Seed HEFT' : 'Best final';
+    this.canvasContainer.insertAdjacentHTML('afterbegin', `
+      <section class="task-flow" aria-label="Pemetaan task ke VM pada fase saat ini">
+        <div class="flow-heading">
+          <div><span class="flow-eyebrow">${escapeHtml(mode)}</span><h4>${escapeHtml(descriptor)}</h4></div>
+          <span class="flow-counter">${previous ? `${changed} task berpindah` : `${this.sampleTasks.length} task dialokasikan`}</span>
+        </div>
+        <p class="flow-explanation">${escapeHtml(explanation)}</p>
+        <p class="flow-note">Sampel ${this.sampleTasks.length} task asli · ${this.sampleVms.length} VM · ${this.formManager.getConfig().datacenters} DC.
+          Demo ringkas: ${this.currentAlgo === 'CSA' ? '6 antibodi, 3 parent, 10 generasi, beta 1' : '4 entri HM, 10 iterasi, 3 improvisasi'}.
+          Animasi adalah perpindahan pemetaan antarkandidat, bukan migrasi CloudSim saat runtime.</p>
+        <div class="flow-source"><span class="flow-source-dot"></span><strong>Sumber task · dataset GoCJ</strong><span>Token T = ID task dataset</span></div>
+        <div class="flow-vm-grid">
+          ${this.sampleVms.map((vm, index) => {
+            const capacity = candidate.capacityFactors[index];
+            const oldCapacity = previous?.capacityFactors[index];
+            return `<section class="flow-vm ${capacity === 0 ? 'flow-vm-off' : ''}" data-flow-vm="${index}">
+              <div class="flow-vm-heading"><strong>VM ${index}</strong><span>DC ${vm.datacenterIndex} · ${vm.type}</span></div>
+              <div class="flow-capacity">${oldCapacity !== undefined && oldCapacity !== capacity ? `${oldCapacity * 100}% → ` : ''}${capacity * 100}% kapasitas · ${vm.pes} PE</div>
+              <div class="flow-token-list">${tasksByVm[index].map(task => {
+                const moved = !previous || previous.assignedVm[task.id] !== index;
+                const from = previous ? `VM ${previous.assignedVm[task.id]}` : 'Sumber';
+                return `<span class="flow-token ${moved ? 'flow-token-changed' : ''} ${capacity === 0 ? 'flow-token-invalid' : ''}"
+                  data-flow-task="${task.id}" title="${from} → VM ${index}; ${task.lengthMi} MI${capacity === 0 ? '; menunggu repair' : ''}">T${escapeHtml(task.datasetId)}</span>`;
+              }).join('') || '<span class="flow-empty">Tidak ada task</span>'}</div>
+            </section>`;
+          }).join('')}
+        </div>
+        <p class="flow-note flow-delta">${previous ? `${changed} perubahan VM · ${changedCapacity} perubahan kapasitas · urutan ${orderChanged ? 'berubah' : 'tetap'} dibanding kandidat visual sebelumnya.` : 'Penempatan awal dari sumber ke VM.'}
+          ${previous && changed === 0 ? 'Tidak ada perpindahan task pada langkah ini; token tidak digerakkan secara buatan.' : ''}
+          Token berbingkai putus-putus menunggu repair.</p>
+        ${state.operations?.length ? `<p class="flow-operations"><strong>Operasi aktual:</strong> ${state.operations.map(escapeHtml).join(' · ')}</p>` : ''}
+        <details class="flow-mapping"><summary>Pemetaan sebelum → sesudah & urutan task</summary>
+          <p>Urutan sebelumnya: ${previous ? previous.taskOrder.map(id => `T${escapeHtml(this.sampleTasks[id].datasetId)}`).join(' → ') : 'Belum ada'}</p>
+          <p>Urutan sekarang: ${candidate.taskOrder.map(id => `T${escapeHtml(this.sampleTasks[id].datasetId)}`).join(' → ')}</p>
+          <div class="matrix-table-wrap"><table class="data-table small-table"><thead><tr><th>Task</th><th>Sebelum</th><th>Sesudah</th><th>Perubahan</th></tr></thead>
+            <tbody>${this.sampleTasks.map(task => {
+              const before = previous?.assignedVm[task.id];
+              const after = candidate.assignedVm[task.id];
+              return `<tr><th>T${escapeHtml(task.datasetId)}</th><td>${before === undefined ? 'Sumber' : `VM ${before}`}</td><td>VM ${after}</td><td>${before === undefined ? 'Awal' : before === after ? 'Tetap' : 'Pindah'}</td></tr>`;
+            }).join('')}</tbody>
+          </table></div>
+        </details>
+      </section>`);
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reducedMotion) return;
+    const source = this.canvasContainer.querySelector('.flow-source-dot').getBoundingClientRect();
+    this.canvasContainer.querySelectorAll('[data-flow-task]').forEach(token => {
+      const id = Number(token.dataset.flowTask);
+      if (previous && previous.assignedVm[id] === candidate.assignedVm[id]) return;
+      const before = previousPositions.get(id) || source;
+      const after = token.getBoundingClientRect();
+      if (!after.width || !token.animate) return;
+      const animation = token.animate([
+        { transform: `translate(${before.left - after.left}px, ${before.top - after.top}px) scale(.86)`, opacity: .5 },
+        { transform: 'translate(0, 0) scale(1)', opacity: 1 }
+      ], { duration: 850 / this.speed, easing: 'cubic-bezier(.22,.75,.25,1)' });
+      this.animations.push(animation);
+    });
   }
 
   renderCsaView(state) {
@@ -225,7 +406,7 @@ export class Visualizer {
               <thead>
                 <tr>
                   <th>Ab ID</th>
-                  ${this.sampleTasks.map(t => `<th>T${t.id}</th>`).join('')}
+                  ${this.sampleTasks.map(t => `<th>T${escapeHtml(t.datasetId)}</th>`).join('')}
                   <th>Makespan</th>
                   <th>Fitness (F)</th>
                 </tr>
@@ -249,10 +430,10 @@ export class Visualizer {
           <div class="archive-list">
             ${state.archive.map(a => `
               <div class="archive-item ${state.best && state.best.id === a.id ? 'best-item' : ''}">
-                <div class="arch-id">Candidate #${a.id} ${state.best && state.best.id === a.id ? '⭐ (Best F)' : ''}</div>
+                <div class="arch-id">Candidate #${a.id} ${state.best && state.best.id === a.id ? '(Best F)' : ''}</div>
                 <div class="arch-metrics">
-                  <span>⏱ ${a.makespan.toFixed(2)}s</span>
-                  <span>⚡ ${(a.energy / 1000).toFixed(1)} kJ</span>
+                  <span>Waktu ${a.makespan.toFixed(2)}s</span>
+                  <span>Energi ${(a.energy / 1000).toFixed(1)} kJ</span>
                   <span>F: ${a.fitness.toFixed(3)}</span>
                 </div>
               </div>
@@ -264,15 +445,6 @@ export class Visualizer {
 
     this.canvasContainer.innerHTML = html;
 
-    // Render timeline for best candidate
-    if (state.best) {
-      const plan = {
-        taskOrder: [...this.sampleTasks.map(t => t.id)],
-        assignedVm: state.best.assignedVm,
-        capacityFactors: new Array(this.sampleVms.length).fill(1.0)
-      };
-      this.renderTimeline(plan, state.best.makespan);
-    }
   }
 
   renderPhsView(state) {
@@ -291,14 +463,14 @@ export class Visualizer {
           <h4>Harmony Memory: Schedule</h4>
           <div class="hm-list">
             ${state.scheduleHm.map((sol, idx) => `
-              <div class="hm-card ${idx === 0 ? 'seed-card' : ''}">
+              <div class="hm-card ${sol.isHeftSeed ? 'seed-card' : ''}">
                 <div class="hm-card-header">
-                  <span>Entry #${idx} ${idx === 0 ? '(HEFT Seed)' : ''}</span>
+                  <span>Entry #${idx} ${sol.isHeftSeed ? '(HEFT Seed)' : ''}</span>
                   <span class="makespan-tag">${sol.makespan.toFixed(2)}s</span>
                 </div>
                 <div class="hm-card-body">
-                  <div class="order-seq">Urutan: [${sol.taskOrder.join(', ')}]</div>
-                  <div class="assign-seq">VM: [${sol.assignedVm.join(', ')}]</div>
+                  <div class="order-seq">Urutan: [${sol.taskOrder.map(id => `T${escapeHtml(this.sampleTasks[id].datasetId)}`).join(', ')}]</div>
+                  <div class="assign-seq">${sol.assignedVm.map((vm, id) => `T${escapeHtml(this.sampleTasks[id].datasetId)}: VM ${vm}`).join(' · ')}</div>
                 </div>
               </div>
             `).join('')}
@@ -332,116 +504,21 @@ export class Visualizer {
 
     this.canvasContainer.innerHTML = html;
 
-    if (state.best) {
-      const plan = {
-        taskOrder: state.best.taskOrder,
-        assignedVm: state.best.assignedVm,
-        capacityFactors: state.best.capacityFactors
-      };
-      this.renderTimeline(plan, state.best.makespan);
-    }
   }
 
-  renderTimeline(plan, makespan) {
-    if (!this.timelineContainer) return;
-    const dec = decodeSchedule(this.sampleTasks, this.sampleVms, plan, 2);
 
-    let html = `
-      <div class="timeline-header">
-        <h4>Gantt Timeline Jadwal (Ilustrasi JS, bukan CloudSim) — Makespan: ${dec.makespan.toFixed(2)}s</h4>
-      </div>
-      <div class="timeline-body">
-    `;
-
-    for (let v = 0; v < this.sampleVms.length; v++) {
-      const vm = this.sampleVms[v];
-      const cap = plan.capacityFactors[v];
-      const vmTasks = [];
-      for (let i = 0; i < this.sampleTasks.length; i++) {
-        if (plan.assignedVm[i] === v) {
-          vmTasks.push({
-            id: i,
-            start: dec.startTimes[i],
-            finish: dec.finishTimes[i],
-            pe: dec.assignedPe[i]
-          });
-        }
-      }
-
-      const isInactive = cap === 0;
-
-      html += `
-        <div class="timeline-row ${isInactive ? 'row-inactive' : ''}">
-          <div class="row-label">
-            <strong>VM ${v} (${vm.type})</strong>
-            <span class="cap-label">${cap * 100}% cap</span>
-          </div>
-          <div class="row-track">
-            ${isInactive ? '<span class="inactive-text">VM Dinonaktifkan (PHS)</span>' : ''}
-            ${vmTasks.map(t => {
-              const leftPct = makespan > 0 ? (t.start / makespan) * 100 : 0;
-              const widthPct = makespan > 0 ? ((t.finish - t.start) / makespan) * 100 : 0;
-              return `
-                <div class="timeline-block block-vm-${vm.type.toLowerCase()}" style="left: ${leftPct}%; width: ${Math.max(widthPct, 2)}%;">
-                  <span>T${t.id}</span>
-                </div>
-              `;
-            }).join('')}
-          </div>
-        </div>
-      `;
-    }
-
-    html += `</div>`;
-    this.timelineContainer.innerHTML = html;
-  }
-
-  async runBackendSimulation() {
-    if (!this.formManager.isValid()) {
-      alert("Distribusi VM tidak cocok dengan total VM per datacenter!");
-      return;
-    }
-
-    const config = this.formManager.getConfig();
-    config.algorithms = [this.currentAlgo];
-    config.runs = 1; // single representative run for inspection
-
-    this.backendRunBtn.disabled = true;
-    this.backendRunBtn.textContent = 'Menjalankan CloudSim di Backend...';
-    this.backendResultArea.innerHTML = '<div class="loader-box"><div class="spinner"></div><p>Simulasi CloudSim 7 nyata sedang dijalankan di backend child process...</p></div>';
-
-    try {
-      const submitRes = await Api.submitSimulation(config);
-      const jobId = submitRes.jobId;
-
-      // Poll until finished
-      let job;
-      do {
-        await new Promise(r => setTimeout(r, 800));
-        job = await Api.pollSimulation(jobId);
-      } while (job.status === 'RUNNING');
-
-      if (job.status === 'SUCCEEDED') {
-        this.renderBackendResult(job.result);
-      } else {
-        this.backendResultArea.innerHTML = `<div class="alert alert-error">Gagal: ${job.error?.message || 'Simulasi gagal'}</div>`;
-      }
-    } catch (e) {
-      this.backendResultArea.innerHTML = `<div class="alert alert-error">Error: ${e.message}</div>`;
-    } finally {
-      this.backendRunBtn.disabled = false;
-      this.backendRunBtn.textContent = 'Jalankan CloudSim Nyata';
-    }
-  }
 
   renderBackendResult(result) {
-    const algoRes = result.results[0];
+    this.backendResult = result;
+    const algoRes = result.results.find(item => item.algorithm === this.currentAlgo);
+    if (!algoRes || !this.backendResultArea) return;
     const rep = algoRes.representativeRun;
     const metrics = algoRes.metrics;
 
     let html = `
       <div class="backend-summary-card">
         <h4>Hasil CloudSim Nyata: ${algoRes.algorithm}</h4>
+        <p><a href="#slide-5">Lihat perbandingan seluruh 7 algoritma dan lokasi CSV lokal di slide 5</a></p>
         <div class="provenance-tag">
           Engine: ${result.provenance.engine} ${result.provenance.engineVersion} | Dataset: ${result.provenance.dataset} (${result.scenario.taskCount} task) | Model: ${result.provenance.modelRevision}
         </div>

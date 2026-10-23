@@ -34,6 +34,8 @@ export function* csaStepGenerator(tasks, vms, options = {}, seed = 42, totalHost
     return {
       id,
       assignedVm: [...assignedVm],
+      taskOrder,
+      capacityFactors,
       makespan: dec.makespan,
       energy: dec.energyJoules,
       fitness,
@@ -73,6 +75,7 @@ export function* csaStepGenerator(tasks, vms, options = {}, seed = 42, totalHost
     maxGenerations: maxGen,
     population: [...population],
     archive: [...archive],
+    candidate: population[0],
     best: getBestCandidate(archive, population),
     message: `Populasi awal ${p} antibodi dibangkitkan secara acak dan dievaluasi. Pareto Archive diinisialisasi.`
   };
@@ -92,6 +95,7 @@ export function* csaStepGenerator(tasks, vms, options = {}, seed = 42, totalHost
       population: [...population],
       parents: parents.map((pr, idx) => ({ ...pr, rank: idx + 1 })),
       archive: [...archive],
+      candidate: parents[0],
       best: getBestCandidate(archive, population),
       message: `Generasi ${gen}: ${k} parent terbaik (afinitas tertinggi/F terendah) dipilih untuk kloning.`
     };
@@ -124,6 +128,7 @@ export function* csaStepGenerator(tasks, vms, options = {}, seed = 42, totalHost
       parents,
       cloneGroups,
       archive: [...archive],
+      candidate: parents[0],
       best: getBestCandidate(archive, population),
       message: `Parent rank tinggi menghasilkan lebih banyak clone secara proporsional (total ${allClones.length} clone).`
     };
@@ -149,10 +154,13 @@ export function* csaStepGenerator(tasks, vms, options = {}, seed = 42, totalHost
         ...evaluatedClone,
         parentId: cl.parentId,
         rank: cl.rank,
-        mutatedIndices
+        mutatedIndices,
+        mutationRate: cl.mutationRate,
       });
       updateArchive(evaluatedClone);
     }
+    const displayedClone = mutatedClones.reduce((chosen, clone) =>
+      clone.mutatedIndices.length > chosen.mutatedIndices.length ? clone : chosen);
 
     yield {
       phase: "MUTATION",
@@ -161,6 +169,7 @@ export function* csaStepGenerator(tasks, vms, options = {}, seed = 42, totalHost
       population: [...population],
       mutatedClones,
       archive: [...archive],
+      candidate: displayedClone,
       best: getBestCandidate(archive, population),
       message: `Hipermutasi terbalik: parent afinitas rendah mendapat mutasi lebih agresif.`
     };
@@ -176,6 +185,7 @@ export function* csaStepGenerator(tasks, vms, options = {}, seed = 42, totalHost
       maxGenerations: maxGen,
       population: [...population],
       archive: [...archive],
+      candidate: population[0],
       best: getBestCandidate(archive, population),
       message: `Seleksi ${p} penyintas terbaik untuk generasi berikutnya. Pareto archive diperbarui.`
     };
@@ -187,6 +197,7 @@ export function* csaStepGenerator(tasks, vms, options = {}, seed = 42, totalHost
     maxGenerations: maxGen,
     population: [...population],
     archive: [...archive],
+    candidate: getBestCandidate(archive, population),
     best: getBestCandidate(archive, population),
     message: `Optimasi CSA selesai setelah ${maxGen} generasi. Solusi terbaik dipilih dari Pareto Archive.`
   };

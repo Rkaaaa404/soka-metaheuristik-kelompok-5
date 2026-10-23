@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Tugas 5 — Metaheuristik untuk Cloud Task Scheduling | Kelompok 5</title>
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="task-flow.css">
 </head>
 <body>
 
@@ -12,13 +13,13 @@
   <header class="app-header">
     <div class="header-brand">
       <span class="brand-badge">SOKA</span>
-      <span class="brand-title">Cloud Task Scheduling — Kelompok 5</span>
+      <span class="brand-title">Cloud Scheduling <span class="brand-divider">/</span> <span class="brand-team">Kelompok 5</span></span>
     </div>
 
     <nav class="header-nav" aria-label="Slide Navigation">
-      <button id="nav-prev-btn" class="nav-btn" title="Slide Sebelumnya (ArrowLeft / PageUp)">◀ Prev</button>
+      <button id="nav-prev-btn" class="nav-btn" title="Slide Sebelumnya (ArrowLeft / PageUp)" aria-label="Slide sebelumnya">← <span>Sebelumnya</span></button>
       <span id="nav-slide-indicator" class="slide-indicator">1 / 5</span>
-      <button id="nav-next-btn" class="nav-btn" title="Slide Berikutnya (ArrowRight / PageDown)">Next ▶</button>
+      <button id="nav-next-btn" class="nav-btn" title="Slide Berikutnya (ArrowRight / PageDown)" aria-label="Slide berikutnya"><span>Berikutnya</span> →</button>
     </nav>
   </header>
 
@@ -28,22 +29,29 @@
     <!-- ==================== SLIDE 1: PENGENALAN ==================== -->
     <section id="slide-1" class="slide-section active">
       <div class="slide-card">
+        <div class="intro-layout">
         <div class="slide-title-wrap">
-          <div class="slide-eyebrow">Bagian 1 dari 5 — Profil Tim & Proyek</div>
-          <h1 class="slide-title">Metaheuristik untuk Cloud Task Scheduling</h1>
-          <p class="lead-text">Simulasi & Evaluasi Algoritma Clonal Selection (CSA) dan Polyrhythmic Harmony Search (PHS) berbasis CloudSim 7 & Dataset GoCJ</p>
+          <div class="slide-eyebrow">01 / Pengenalan <span class="eyebrow-divider">—</span> SOKA · Semester 5</div>
+          <h1 class="slide-title">Metaheuristik untuk <span class="title-accent">Cloud Task Scheduling.</span></h1>
+          <p class="lead-text">Dari inspirasi biologis dan harmoni musik menuju penjadwalan cloud yang lebih efisien.</p>
         </div>
 
         <div class="hero-box">
-          <h3>Mata Kuliah: SOKA (Semester 5)</h3>
+          <div class="hero-kicker">Simulasi nyata. Perbandingan terukur.</div>
+          <h3>Dua pendekatan.<br>Satu ruang pencarian.</h3>
           <p>
-            Proyek ini mengimplementasikan presentasi web akademik interaktif beserta mesin simulasi komputasi awan nyata.
-            Kami membandingkan algoritma metaheuristik adaptif terhadap lima algoritma penjadwalan baseline heuristik klasik menggunakan sembilan metrik kinerja.
+            Clonal Selection (CSA) dan Polyrhythmic Harmony Search (PHS) dibandingkan dengan lima baseline heuristik klasik, menggunakan CloudSim 7 dan dataset GoCJ.
           </p>
+          <div class="hero-stats" aria-label="Cakupan eksperimen">
+            <div><strong>7</strong><span>algoritma</span></div>
+            <div><strong>9</strong><span>metrik kinerja</span></div>
+            <div><strong>1</strong><span>workload yang sama</span></div>
+          </div>
+        </div>
         </div>
 
         <div class="group-section">
-          <h3>Kelompok 5 — Anggota Tim:</h3>
+          <div class="section-heading"><h3>Kenali tim kami</h3><span>Kelompok 5 / SOKA</span></div>
           <div class="members-grid">
             <div class="member-card">
               <div class="member-avatar">BS</div>
@@ -93,24 +101,26 @@
     <section id="slide-2" class="slide-section">
       <div class="slide-card">
         <div class="slide-title-wrap">
-          <div class="slide-eyebrow">Bagian 2 dari 5 — Landasan Konseptual</div>
-          <h2 class="slide-title">Metaheuristik dalam Cloud Task Scheduling</h2>
-          <p class="lead-text">Mengapa masalah penjadwalan komputasi awan memerlukan pendekatan metaheuristik?</p>
+          <div class="slide-eyebrow">02 / Landasan konseptual</div>
+          <h2 class="slide-title">Ruang pencarian besar.<br><span class="title-accent">Strategi harus lebih cerdas.</span></h2>
+          <p class="lead-text">Mengapa Cloud Task Scheduling membutuhkan keseimbangan exploration dan exploitation?</p>
         </div>
 
         <div class="concept-grid">
           <div class="concept-card">
-            <h3>Tantangan Kombinatorik NP-Hard</h3>
+            <span class="concept-number">01 / Tantangan</span>
+            <h3>Penjadwalan adalah masalah NP-Hard.</h3>
             <p>
               Pada infrastruktur cloud modern, ribuan task independen (workload batch) dengan panjang instruksi (MI) dan waktu kedatangan (arrival time) berbeda harus dialokasikan ke puluhan virtual machine (VM) heterogen.
             </p>
             <p style="margin-top:0.75rem;">
-              Untuk $N$ task dan $M$ VM, terdapat <strong>$M^N$ kemungkinan pemetaan</strong>. Pada $N=1000$ dan $M=10$, jumlah ruang pencarian adalah $10^{1000}$, sehingga pencarian eksak (exhaustive search atau ILP) mustahil diselesaikan secara real-time.
+              Untuk <var>N</var> task dan <var>M</var> VM, terdapat <strong><var>M</var><sup><var>N</var></sup> kemungkinan pemetaan</strong>. Pada <var>N</var> = 1000 dan <var>M</var> = 10, ruang pencarian mencapai 10<sup>1000</sup>. Pencarian eksak (exhaustive search atau ILP) menjadi tidak praktis untuk skenario ini secara real-time.
             </p>
           </div>
 
           <div class="concept-card">
-            <h3>Peran Algoritma Metaheuristik</h3>
+            <span class="concept-number">02 / Pendekatan</span>
+            <h3>Jelajahi kemungkinan. Pertajam solusi.</h3>
             <p>
               Metaheuristik adalah kerangka optimasi tingkat tinggi yang menyeimbangkan dua mekanisme utama:
             </p>
@@ -173,14 +183,14 @@
     <section id="slide-3" class="slide-section">
       <div class="slide-card">
         <div class="slide-title-wrap">
-          <div class="slide-eyebrow">Bagian 3 dari 5 — Teori & Mekanisme Paper</div>
-          <h2 class="slide-title">Penjelasan Algoritma Terpilih: CSA & PHS</h2>
-          <p class="lead-text">Kajian teoretis bersumber langsung dari paper rujukan ilmiah dan adaptasi implementasinya</p>
+          <div class="slide-eyebrow">03 / Teori & mekanisme</div>
+          <h2 class="slide-title">Dua inspirasi. <span class="title-accent">Dua cara beradaptasi.</span></h2>
+          <p class="lead-text">Mekanisme CSA & PHS dari paper rujukan, dengan batas adaptasi implementasi yang transparan.</p>
         </div>
 
         <div class="tabs-nav">
-          <button class="tab-btn theory-tab-btn active" data-target="theory-csa">1. Clonal Selection Algorithm (CSA)</button>
-          <button class="tab-btn theory-tab-btn" data-target="theory-phs">2. Polyrhythmic Harmony Search (PHS)</button>
+          <button class="tab-btn theory-tab-btn active" data-target="theory-csa"><span class="tab-code">CSA</span> Clonal Selection</button>
+          <button class="tab-btn theory-tab-btn" data-target="theory-phs"><span class="tab-code">PHS</span> Polyrhythmic Harmony Search</button>
         </div>
 
         <!-- Tab CSA -->
@@ -194,15 +204,15 @@
               </p>
 
               <ol style="margin: 0.75rem 0 1rem 1.25rem;">
-                <li><strong>Inisialisasi Populasi:</strong> Bangkitkan $P$ antibodi acak. Setiap gen mewakili penugasan VM untuk task tertentu.</li>
-                <li><strong>Evaluasi Afinitas:</strong> Hitung fitness skalar $F = w \cdot \frac{T}{T_{ref}} + (1-w) \cdot \frac{E}{E_{ref}}$ di mana $T$ adalah makespan dan $E$ adalah konsumsi energi host. Afinitas didefinisikan $\frac{1}{1+F}$.</li>
-                <li><strong>Seleksi & Kloning:</strong> Pilih $K$ antibodi dengan afinitas tertinggi. Parent rank $r$ menghasilkan klon proporsional: $C_r = \lfloor \beta \cdot P / r \rfloor$.</li>
-                <li><strong>Hipermutasi Terbalik (Affinity-Dependent Hypermutation):</strong> Klon dari parent berafinitas tinggi mengalami laju mutasi rendah, sedangkan klon rank rendah bermutasi agresif ($p_r$).</li>
-                <li><strong>Arsip Pareto (Non-Dominated Front):</strong> Solusi trade-off $(T, E)$ yang tidak saling mendominasi disimpan sepanjang generasi.</li>
+                <li><strong>Inisialisasi Populasi:</strong> Bangkitkan <var>P</var> antibodi acak. Setiap gen mewakili penugasan VM untuk task tertentu.</li>
+                <li><strong>Evaluasi Afinitas:</strong> Hitung fitness skalar <span class="formula">F = w · (T / T<sub>ref</sub>) + (1 − w) · (E / E<sub>ref</sub>)</span>, dengan <var>T</var> makespan dan <var>E</var> konsumsi energi host. Afinitas didefinisikan sebagai 1 / (1 + F).</li>
+                <li><strong>Seleksi & Kloning:</strong> Pilih <var>K</var> antibodi dengan afinitas tertinggi. Parent rank <var>r</var> menghasilkan klon proporsional: <span class="formula">C<sub>r</sub> = ⌊β · P / r⌋</span>.</li>
+                <li><strong>Hipermutasi Terbalik (Affinity-Dependent Hypermutation):</strong> Klon dari parent berafinitas tinggi mengalami laju mutasi rendah, sedangkan klon rank rendah bermutasi agresif (<var>p</var><sub>r</sub>).</li>
+                <li><strong>Arsip Pareto (Non-Dominated Front):</strong> Solusi trade-off (<var>T</var>, <var>E</var>) yang tidak saling mendominasi disimpan sepanjang generasi.</li>
               </ol>
 
               <div class="paper-box">
-                <h4>📄 Paper Rujukan CSA</h4>
+                <h4>Referensi / CSA</h4>
                 <p>
                   R. K. Jena, <em>Energy Efficient Task Scheduling in Cloud Environment</em>, Energy Procedia 141 (2017), hlm. 222–227.
                   DOI: <a href="https://doi.org/10.1016/j.egypro.2017.11.096" target="_blank">10.1016/j.egypro.2017.11.096</a>
@@ -238,7 +248,7 @@
                   </tr>
                   <tr>
                     <td><strong>Energi Host</strong></td>
-                    <td>Persamaan $P = P_{idle} + (P_{max}-P_{idle}) \cdot u$</td>
+                    <td>Persamaan P = P<sub>idle</sub> + (P<sub>max</sub> − P<sub>idle</sub>) · u</td>
                     <td>Idle 100W, Max 200W, integral pemakaian PEs</td>
                   </tr>
                   <tr>
@@ -271,7 +281,7 @@
               </ol>
 
               <div class="paper-box">
-                <h4>📄 Paper Rujukan PHS</h4>
+                <h4>Referensi / PHS</h4>
                 <p>
                   Melnik & Trofimenko, <em>Polyrhythmic Harmony Search for Workflow Scheduling</em>, Procedia Computer Science (2015), hlm. 468–475.
                   DOI: <a href="https://doi.org/10.1016/j.procs.2015.11.053" target="_blank">10.1016/j.procs.2015.11.053</a>
@@ -327,16 +337,16 @@
     <section id="slide-4" class="slide-section">
       <div class="slide-card">
         <div class="slide-title-wrap">
-          <div class="slide-eyebrow">Bagian 4 dari 5 — VisuAlgo Live Simulator</div>
-          <h2 class="slide-title">Visualisasi Interaktif Algoritma</h2>
-          <p class="lead-text">Amati langkah demi langkah bekerjanya operator internal algoritma secara live di browser</p>
+          <div class="slide-eyebrow">04 / Laboratorium interaktif</div>
+          <h2 class="slide-title">Lihat strategi <span class="title-accent">menjadi sebuah jadwal.</span></h2>
+          <p class="lead-text">Ikuti perpindahan task ke VM, lalu uji seluruh 7 algoritma dengan CloudSim nyata.</p>
         </div>
 
         <!-- Mode & Algo selector -->
         <div class="vis-controls-bar">
           <div class="vis-btn-group">
-            <button class="btn btn-secondary vis-mode-tab active" data-mode="js">Step-by-step (JavaScript Live)</button>
-            <button class="btn btn-secondary vis-mode-tab" data-mode="backend">Run CloudSim (Backend Nyata)</button>
+            <button class="btn btn-secondary vis-mode-tab active" data-mode="js">Eksplorasi langkah demi langkah</button>
+            <button class="btn btn-secondary vis-mode-tab" data-mode="backend">Eksperimen CloudSim</button>
           </div>
 
           <div class="vis-btn-group">
@@ -347,7 +357,7 @@
 
         <!-- Scenario Form Component for Slide 4 -->
         <div class="form-card">
-          <h3 style="font-size:1.05rem; margin-bottom:0.75rem;">Panel Konfigurasi Skenario:</h3>
+          <h3 class="form-heading">Skenario eksperimen <span>Konfigurasi tersinkron dengan slide evaluasi</span></h3>
           <div id="slide-4-form-container"></div>
         </div>
 
@@ -355,13 +365,13 @@
         <div id="vis-js-panel">
           <div class="vis-controls-bar">
             <div class="vis-btn-group">
-              <button id="vis-btn-step" class="btn btn-primary">Langkah Berikutnya (Next) ⏭</button>
-              <button id="vis-btn-play" class="btn btn-secondary">Play ▶</button>
-              <button id="vis-btn-reset" class="btn btn-secondary">Reset 🔄</button>
+              <button id="vis-btn-step" class="btn btn-primary">Langkah berikutnya →</button>
+              <button id="vis-btn-play" class="btn btn-secondary">Putar</button>
+              <button id="vis-btn-reset" class="btn btn-secondary">Ulangi</button>
             </div>
 
             <div class="vis-btn-group">
-              <label style="font-size:0.85rem; font-weight:600;">Kecepatan:
+              <label class="inline-control" for="vis-speed-select">Kecepatan
                 <select id="vis-speed-select" class="form-input" style="padding:0.25rem 0.5rem;">
                   <option value="0.5">0.5x</option>
                   <option value="1.0" selected>1.0x</option>
@@ -369,27 +379,26 @@
                 </select>
               </label>
 
-              <label style="font-size:0.85rem; font-weight:600;">Subset N Demo:
+              <label class="inline-control" for="vis-sample-n">Task demo
                 <input type="number" id="vis-sample-n" class="form-input" style="width:60px; padding:0.25rem;" min="4" max="30" value="8">
               </label>
             </div>
           </div>
 
-          <div id="vis-status-msg" class="alert alert-info" style="margin-bottom:1rem;">
-            Tekan <strong>Langkah Berikutnya (Next)</strong> untuk memulai simulasi interaktif.
+          <div id="vis-status-msg" class="alert alert-info" role="status" aria-live="polite" style="margin-bottom:1rem;">
+            Tekan <strong>Langkah berikutnya</strong> untuk memulai simulasi interaktif.
           </div>
 
           <div id="vis-canvas-container"></div>
-          <div id="vis-timeline-container" class="timeline-card"></div>
         </div>
 
         <!-- Backend Run Panel -->
         <div id="vis-backend-panel" style="display:none;">
           <div class="alert alert-info">
-            Mode ini mengirim konfigurasi skenario lengkap ke backend Java, menjalankan simulasi <strong>CloudSim 7</strong> secara nyata di child process, dan menampilkan alokasi aktual serta metrik kinerja.
+            Satu skenario, tujuh algoritma: <strong>CSA, PHS, FCFS, RR, SJF, MinMin, dan MaxMin</strong>. Backend Java menjalankan <strong>CloudSim 7</strong> secara nyata; hasil perbandingan tersedia di slide 5.
           </div>
 
-          <button id="vis-backend-run" class="btn btn-primary" style="margin-bottom:1.25rem;">Jalankan CloudSim Nyata</button>
+          <button id="vis-backend-run" class="btn btn-primary" style="margin-bottom:1.25rem;">Jalankan CloudSim · Semua 7 algoritma</button>
           <div id="vis-backend-result"></div>
         </div>
       </div>
@@ -399,16 +408,16 @@
     <section id="slide-5" class="slide-section">
       <div class="slide-card">
         <div class="slide-title-wrap">
-          <div class="slide-eyebrow">Bagian 5 dari 5 — Uji Simulasi Nyata</div>
-          <h2 class="slide-title">Evaluasi & Perbandingan Algoritma</h2>
-          <p class="lead-text">Perbandingan menyeluruh 7 algoritma penjadwalan menggunakan 9 metrik evaluasi nyata dari CloudSim 7</p>
+          <div class="slide-eyebrow">05 / Evaluasi & perbandingan</div>
+          <h2 class="slide-title">Bukan asumsi. <span class="title-accent">Buktikan dengan hasil.</span></h2>
+          <p class="lead-text">Tujuh algoritma, sembilan metrik CloudSim 7, dan workload yang sama untuk perbandingan terukur.</p>
         </div>
 
         <!-- Synchronized Scenario Form for Slide 5 -->
         <div class="form-card">
           <div class="eval-header-bar">
-            <h3 style="font-size:1.05rem;">Konfigurasi Eksperimen:</h3>
-            <button id="eval-btn-run" class="btn btn-primary">Jalankan Evaluasi (Run Semua 7 Algoritma) 🚀</button>
+            <h3 class="form-heading">Konfigurasi eksperimen</h3>
+            <button id="eval-btn-run" class="btn btn-primary">Jalankan semua 7 algoritma →</button>
           </div>
           <div id="slide-5-form-container"></div>
         </div>
@@ -416,7 +425,7 @@
         <div id="eval-stale-banner" class="alert alert-error" style="display:none;"></div>
 
         <!-- Progress Indicator -->
-        <div id="eval-progress-box" class="progress-box" style="display:none;">
+        <div id="eval-progress-box" class="progress-box" role="status" aria-live="polite" style="display:none;">
           <div class="progress-bar-wrap">
             <div id="eval-progress-bar" class="progress-bar-fill"></div>
           </div>

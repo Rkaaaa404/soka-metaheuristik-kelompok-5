@@ -62,6 +62,7 @@ export function* phsStepGenerator(tasks, vms, options = {}, seed = 42, totalHost
   }
 
   const seedSol = evaluate(heftOrder, heftAssign, heftCap);
+  seedSol.isHeftSeed = true;
   let scheduleHm = [seedSol];
   let resourceHm = [seedSol];
   let bestSolution = seedSol;
@@ -90,6 +91,7 @@ export function* phsStepGenerator(tasks, vms, options = {}, seed = 42, totalHost
     maxIterations: maxIter,
     scheduleHm: [...scheduleHm],
     resourceHm: [...resourceHm],
+    candidate: seedSol,
     best: bestSolution,
     message: `Dual Harmony Memory diinisialisasi: Entry 0 berbasis seed HEFT (resource penuh), Entry 1..${hms - 1} dibangkitkan acak.`
   };
@@ -338,6 +340,7 @@ export function* phsStepGenerator(tasks, vms, options = {}, seed = 42, totalHost
       maxIterations: maxIter,
       rhythm: rhythmName,
       accepted,
+      probe,
       worstMakespan,
       probeMakespan: probe.makespan,
       scheduleHm: [...scheduleHm],

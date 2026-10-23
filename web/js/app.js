@@ -76,6 +76,9 @@ class App {
     if (this.prevBtn) this.prevBtn.disabled = (num === 1);
     if (this.nextBtn) this.nextBtn.disabled = (num === this.totalSlides);
 
+
+    if (num !== 4) this.visualizer?.pause();
+    if (num === 5) this.evaluationManager?.loadInitialData();
     if (updateHash) {
       window.location.hash = `#slide-${num}`;
     }
@@ -88,6 +91,18 @@ class App {
     this.formManager = new ScenarioFormManager();
     this.visualizer = new Visualizer(this.formManager);
     this.evaluationManager = new EvaluationManager(this.formManager);
+    this.visualizer.runBackendSimulation = () => this.evaluationManager.runEvaluation();
+    this.evaluationManager.onResult = result => this.visualizer.renderBackendResult(result);
+    this.evaluationManager.onProgress = text => {
+      this.visualizer.backendResultArea.textContent = text;
+    };
+    this.evaluationManager.onError = message => {
+      this.visualizer.backendResultArea.textContent = `Eksperimen gagal: ${message}. Hasil sebelumnya di slide 5 tidak diganti.`;
+    };
+    this.formManager.onChangeCallback = () => {
+      this.evaluationManager.markStale();
+      this.visualizer.invalidate();
+    };
 
     // Register forms on slide 4 and slide 5
     this.formManager.registerForm('slide-4-form-container');
@@ -111,11 +126,11 @@ class App {
       this.formManager.setDatasets(data.datasets);
       await this.visualizer.loadSampleData();
     } catch (e) {
-      console.warn("Backend not yet connected for datasets, running in offline mode:", e);
+      this.visualizer.statusMsg.textContent = `Dataset tidak dapat dimuat: ${e.message}. Demo tidak memakai data pengganti.`;
     }
 
-    // Load initial default evaluation on slide 5
-    this.evaluationManager.loadInitialData();
+    // Default only when evaluation is first opened; never race a custom experiment.
+    if (this.currentSlide === 5) this.evaluationManager.loadInitialData();
   }
 }
 
