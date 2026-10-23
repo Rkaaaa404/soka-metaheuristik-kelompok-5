@@ -1,6 +1,8 @@
 /**
  * Synchronized Scenario Form state and component for Slide 4 and Slide 5.
  */
+const ALGO_IDS = ['CSA', 'PHS', 'FCFS', 'RR', 'SJF', 'MinMin', 'MaxMin'];
+
 export class ScenarioFormManager {
   constructor(onChangeCallback) {
     this.onChangeCallback = onChangeCallback;
@@ -50,7 +52,7 @@ export class ScenarioFormManager {
 
         <div class="form-group">
           <label for="${container.id}-datacenters">Datacenter (DC)</label>
-          <input type="number" id="${container.id}-datacenters" class="form-input" min="1" max="10" value="${this.state.datacenters}">
+          <input type="number" id="${container.id}-datacenters" class="form-input" min="1" max="100" value="${this.state.datacenters}">
         </div>
 
         <div class="form-group">
@@ -91,10 +93,42 @@ export class ScenarioFormManager {
           <label for="${container.id}-seed">RNG Seed (uint32)</label>
           <input type="number" id="${container.id}-seed" class="form-input" min="0" max="4294967295" value="${this.state.seed}">
         </div>
+
+        <div class="form-group full-width">
+          <label>Algoritma yang dijalankan:</label>
+          <div class="algo-check-row">
+            <label class="algo-check-label">
+              <input type="checkbox" id="${container.id}-algo-all" class="algo-check-all"> <span>Semua</span>
+            </label>
+            <span class="algo-check-sep" aria-hidden="true">|</span>
+            <label class="algo-check-label badge-metaheuristic">
+              <input type="checkbox" id="${container.id}-algo-CSA" class="algo-check" value="CSA" checked> <span>CSA</span>
+            </label>
+            <label class="algo-check-label badge-metaheuristic">
+              <input type="checkbox" id="${container.id}-algo-PHS" class="algo-check" value="PHS" checked> <span>PHS</span>
+            </label>
+            <label class="algo-check-label">
+              <input type="checkbox" id="${container.id}-algo-FCFS" class="algo-check" value="FCFS" checked> <span>FCFS</span>
+            </label>
+            <label class="algo-check-label">
+              <input type="checkbox" id="${container.id}-algo-RR" class="algo-check" value="RR" checked> <span>RR</span>
+            </label>
+            <label class="algo-check-label">
+              <input type="checkbox" id="${container.id}-algo-SJF" class="algo-check" value="SJF" checked> <span>SJF</span>
+            </label>
+            <label class="algo-check-label">
+              <input type="checkbox" id="${container.id}-algo-MinMin" class="algo-check" value="MinMin" checked> <span>MinMin</span>
+            </label>
+            <label class="algo-check-label">
+              <input type="checkbox" id="${container.id}-algo-MaxMin" class="algo-check" value="MaxMin" checked> <span>MaxMin</span>
+            </label>
+          </div>
+          <div id="${container.id}-algo-error" class="validation-msg text-error" style="display:none;">Pilih minimal satu algoritma.</div>
+        </div>
       </div>
 
       <details class="advanced-settings">
-        <summary>Pengaturan Lanjutan Metaheuristik (CSA & PHS)</summary>
+        <summary>Pengaturan Lanjutan Metaheuristik (CSA &amp; PHS)</summary>
         <div class="adv-grid">
           <div class="adv-col">
             <h4>CSA (Clonal Selection)</h4>
@@ -117,6 +151,7 @@ export class ScenarioFormManager {
     this.bindEvents(container);
     this.updateAllSelects();
     this.validateDistribution(container.id);
+    this.validateAlgorithms(container.id);
   }
 
   updateAllSelects() {
@@ -138,7 +173,6 @@ export class ScenarioFormManager {
     const syncField = (key, val) => {
       this.state[key] = val;
       this.syncAllForms();
-      if (this.onChangeCallback) this.onChangeCallback(this.state);
     };
 
     getEl('dataset').addEventListener('change', (e) => {
@@ -148,7 +182,6 @@ export class ScenarioFormManager {
         this.state.taskCount = ds.rowCount;
       }
       this.syncAllForms();
-      if (this.onChangeCallback) this.onChangeCallback(this.state);
     });
 
     getEl('taskCount').addEventListener('input', (e) => syncField('taskCount', parseInt(e.target.value) || 1));
@@ -159,7 +192,6 @@ export class ScenarioFormManager {
       this.state.vmsPerDatacenter = parseInt(e.target.value) || 1;
       this.validateDistribution(id);
       this.syncAllForms();
-      if (this.onChangeCallback) this.onChangeCallback(this.state);
     });
 
     const updateVmDist = () => {
@@ -169,7 +201,6 @@ export class ScenarioFormManager {
       this.state.vmDistribution = { small: s, medium: m, large: l };
       this.validateDistribution(id);
       this.syncAllForms();
-      if (this.onChangeCallback) this.onChangeCallback(this.state);
     };
 
     getEl('vm-small').addEventListener('input', updateVmDist);
@@ -180,16 +211,33 @@ export class ScenarioFormManager {
     getEl('seed').addEventListener('input', (e) => syncField('seed', parseInt(e.target.value) || 0));
 
     // CSA advanced
-    getEl('csa-p').addEventListener('input', (e) => { this.state.csa.population = parseInt(e.target.value) || 2; this.syncAllForms(); });
-    getEl('csa-k').addEventListener('input', (e) => { this.state.csa.selected = parseInt(e.target.value) || 1; this.syncAllForms(); });
-    getEl('csa-g').addEventListener('input', (e) => { this.state.csa.generations = parseInt(e.target.value) || 1; this.syncAllForms(); });
-    getEl('csa-beta').addEventListener('input', (e) => { this.state.csa.beta = parseFloat(e.target.value) || 1.0; this.syncAllForms(); });
-    getEl('csa-w').addEventListener('input', (e) => { this.state.csa.timeWeight = parseFloat(e.target.value) || 0.5; this.syncAllForms(); });
+    const advanced = (field, group, key) => {
+      getEl(field).addEventListener('input', e => {
+        this.state[group][key] = e.target.valueAsNumber;
+        this.syncAllForms();
+      });
+    };
+    advanced('csa-p', 'csa', 'population');
+    advanced('csa-k', 'csa', 'selected');
+    advanced('csa-g', 'csa', 'generations');
+    advanced('csa-beta', 'csa', 'beta');
+    advanced('csa-w', 'csa', 'timeWeight');
+    advanced('phs-hms', 'phs', 'memorySize');
+    advanced('phs-iter', 'phs', 'iterations');
+    advanced('phs-imp', 'phs', 'improvisations');
 
-    // PHS advanced
-    getEl('phs-hms').addEventListener('input', (e) => { this.state.phs.memorySize = parseInt(e.target.value) || 2; this.syncAllForms(); });
-    getEl('phs-iter').addEventListener('input', (e) => { this.state.phs.iterations = parseInt(e.target.value) || 1; this.syncAllForms(); });
-    getEl('phs-imp').addEventListener('input', (e) => { this.state.phs.improvisations = parseInt(e.target.value) || 1; this.syncAllForms(); });
+    const syncAlgoState = () => {
+      this.state.algorithms = ALGO_IDS.filter(a => getEl(`algo-${a}`)?.checked);
+      this.syncAllForms();
+    };
+
+    ALGO_IDS.forEach(a => getEl(`algo-${a}`).addEventListener('change', syncAlgoState));
+
+    getEl('algo-all').addEventListener('change', () => {
+      const allOn = this.state.algorithms.length === ALGO_IDS.length;
+      this.state.algorithms = allOn ? [] : [...ALGO_IDS];
+      this.syncAllForms();
+    });
   }
 
   validateDistribution(containerId) {
@@ -208,9 +256,23 @@ export class ScenarioFormManager {
     }
   }
 
+  validateAlgorithms(containerId) {
+    const errEl = document.getElementById(`${containerId}-algo-error`);
+    if (!errEl) return this.state.algorithms.length >= 1;
+    const valid = this.state.algorithms.length >= 1;
+    errEl.style.display = valid ? 'none' : 'block';
+    return valid;
+  }
+
   isValid() {
     const sum = this.state.vmDistribution.small + this.state.vmDistribution.medium + this.state.vmDistribution.large;
-    return sum === this.state.vmsPerDatacenter;
+    const validInputs = [...this.boundForms].every(form =>
+      [...form.querySelectorAll('input')].every(input => input.value !== '' && input.checkValidity()));
+    const dataset = this.datasets.find(d => d.filename === this.state.dataset);
+    return validInputs && sum === this.state.vmsPerDatacenter
+      && this.state.csa.selected <= this.state.csa.population
+      && (!dataset || this.state.taskCount <= dataset.rowCount)
+      && this.state.algorithms.length >= 1;
   }
 
   syncAllForms() {
@@ -243,7 +305,22 @@ export class ScenarioFormManager {
       setVal('phs-imp', this.state.phs.improvisations);
 
       this.validateDistribution(id);
+
+      ALGO_IDS.forEach(a => {
+        const el = document.getElementById(`${id}-algo-${a}`);
+        if (el && document.activeElement !== el) {
+          el.checked = this.state.algorithms.includes(a);
+        }
+      });
+      const allEl = document.getElementById(`${id}-algo-all`);
+      if (allEl) {
+        const count = this.state.algorithms.length;
+        allEl.checked = count === ALGO_IDS.length;
+        allEl.indeterminate = count > 0 && count < ALGO_IDS.length;
+      }
+      this.validateAlgorithms(id);
     }
+    this.onChangeCallback?.(this.state);
   }
 
   getConfig() {
