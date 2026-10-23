@@ -27,12 +27,6 @@ public class ApiValidationTest {
         assertThrows(IllegalArgumentException.class, () -> repo.loadTasks("hacked.csv", 10));
     }
 
-    @Test
-    public void testScenarioValidationRejectsMismatchedVmDistribution() {
-        assertThrows(IllegalArgumentException.class, () ->
-            new ScenarioConfig("GoCJ_Dataset_1000.csv", List.of("FCFS"), 100, 2, 5, 5, new VmDistribution(2, 2, 2), 1, 42L, null, null)
-        );
-    }
 
     @Test
     public void testInsufficientCapacityRejection() {

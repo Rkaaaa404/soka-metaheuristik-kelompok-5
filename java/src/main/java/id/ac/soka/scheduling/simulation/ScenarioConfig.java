@@ -48,7 +48,7 @@ public record ScenarioConfig(
             taskCount != null ? taskCount : 1000,
             datacenters != null ? datacenters : 2,
             hostsPerDatacenter != null ? hostsPerDatacenter : 5,
-            vmsPerDatacenter != null ? vmsPerDatacenter : 5,
+            vmDistribution != null ? vmDistribution.total() : 5,
             vmDistribution != null ? vmDistribution : new VmDistribution(2, 2, 1),
             runs != null ? runs : 5,
             seed != null ? seed : 42L,
@@ -103,17 +103,11 @@ public record ScenarioConfig(
         if (hostsPerDatacenter < 1 || hostsPerDatacenter > 50) {
             throw new IllegalArgumentException("hostsPerDatacenter must be 1..50, got: " + hostsPerDatacenter);
         }
-        if (vmsPerDatacenter < 1 || vmsPerDatacenter > 100) {
-            throw new IllegalArgumentException("vmsPerDatacenter must be 1..100, got: " + vmsPerDatacenter);
-        }
         if (vmDistribution == null) {
             throw new IllegalArgumentException("vmDistribution must not be null");
         }
-        if (vmDistribution.total() != vmsPerDatacenter) {
-            throw new IllegalArgumentException(
-                "VM distribution sum (" + vmDistribution.total() +
-                ") must equal vmsPerDatacenter (" + vmsPerDatacenter + ")"
-            );
+        if (vmDistribution.total() < 1) {
+            throw new IllegalArgumentException("vmDistribution must have at least 1 VM total, got: " + vmDistribution.total());
         }
         if (runs < 1 || runs > 10) {
             throw new IllegalArgumentException("runs must be 1..10, got: " + runs);

@@ -11,7 +11,6 @@ export class ScenarioFormManager {
       taskCount: 1000,
       datacenters: 2,
       hostsPerDatacenter: 5,
-      vmsPerDatacenter: 5,
       vmDistribution: { small: 2, medium: 2, large: 1 },
       runs: 5,
       seed: 42,
@@ -52,7 +51,7 @@ export class ScenarioFormManager {
 
         <div class="form-group">
           <label for="${container.id}-datacenters">Datacenter (DC)</label>
-          <input type="number" id="${container.id}-datacenters" class="form-input" min="1" max="100" value="${this.state.datacenters}">
+          <input type="number" id="${container.id}-datacenters" class="form-input" min="1" max="10" value="${this.state.datacenters}">
         </div>
 
         <div class="form-group">
@@ -60,13 +59,8 @@ export class ScenarioFormManager {
           <input type="number" id="${container.id}-hosts" class="form-input" min="1" max="50" value="${this.state.hostsPerDatacenter}">
         </div>
 
-        <div class="form-group">
-          <label for="${container.id}-vms">VM per DC</label>
-          <input type="number" id="${container.id}-vms" class="form-input" min="1" max="100" value="${this.state.vmsPerDatacenter}">
-        </div>
-
         <div class="form-group full-width">
-          <label>Komposisi Tipe VM per Datacenter (Total harus = VM per DC):</label>
+          <label>Komposisi VM per Datacenter:</label>
           <div class="vm-dist-row">
             <div class="vm-badge-input badge-small">
               <span>Small (500 MIPS, 1 PE)</span>
@@ -81,7 +75,6 @@ export class ScenarioFormManager {
               <input type="number" id="${container.id}-vm-large" class="form-input small-input" min="0" value="${this.state.vmDistribution.large}">
             </div>
           </div>
-          <div id="${container.id}-dist-error" class="validation-msg text-error" style="display:none;"></div>
         </div>
 
         <div class="form-group">
@@ -150,7 +143,6 @@ export class ScenarioFormManager {
 
     this.bindEvents(container);
     this.updateAllSelects();
-    this.validateDistribution(container.id);
     this.validateAlgorithms(container.id);
   }
 
@@ -188,18 +180,11 @@ export class ScenarioFormManager {
     getEl('datacenters').addEventListener('input', (e) => syncField('datacenters', parseInt(e.target.value) || 1));
     getEl('hosts').addEventListener('input', (e) => syncField('hostsPerDatacenter', parseInt(e.target.value) || 1));
 
-    getEl('vms').addEventListener('input', (e) => {
-      this.state.vmsPerDatacenter = parseInt(e.target.value) || 1;
-      this.validateDistribution(id);
-      this.syncAllForms();
-    });
-
     const updateVmDist = () => {
       const s = parseInt(getEl('vm-small').value) || 0;
       const m = parseInt(getEl('vm-medium').value) || 0;
       const l = parseInt(getEl('vm-large').value) || 0;
       this.state.vmDistribution = { small: s, medium: m, large: l };
-      this.validateDistribution(id);
       this.syncAllForms();
     };
 
@@ -240,22 +225,6 @@ export class ScenarioFormManager {
     });
   }
 
-  validateDistribution(containerId) {
-    const sum = this.state.vmDistribution.small + this.state.vmDistribution.medium + this.state.vmDistribution.large;
-    const target = this.state.vmsPerDatacenter;
-    const errEl = document.getElementById(`${containerId}-dist-error`);
-    if (!errEl) return sum === target;
-
-    if (sum !== target) {
-      errEl.style.display = "block";
-      errEl.textContent = `Total distribusi (${sum}) tidak sesuai dengan VM per Datacenter (${target})!`;
-      return false;
-    } else {
-      errEl.style.display = "none";
-      return true;
-    }
-  }
-
   validateAlgorithms(containerId) {
     const errEl = document.getElementById(`${containerId}-algo-error`);
     if (!errEl) return this.state.algorithms.length >= 1;
@@ -265,11 +234,12 @@ export class ScenarioFormManager {
   }
 
   isValid() {
-    const sum = this.state.vmDistribution.small + this.state.vmDistribution.medium + this.state.vmDistribution.large;
     const validInputs = [...this.boundForms].every(form =>
       [...form.querySelectorAll('input')].every(input => input.value !== '' && input.checkValidity()));
     const dataset = this.datasets.find(d => d.filename === this.state.dataset);
-    return validInputs && sum === this.state.vmsPerDatacenter
+    const vmTotal = this.state.vmDistribution.small + this.state.vmDistribution.medium + this.state.vmDistribution.large;
+    return validInputs
+      && vmTotal >= 1
       && this.state.csa.selected <= this.state.csa.population
       && (!dataset || this.state.taskCount <= dataset.rowCount)
       && this.state.algorithms.length >= 1;
@@ -287,7 +257,6 @@ export class ScenarioFormManager {
       setVal('taskCount', this.state.taskCount);
       setVal('datacenters', this.state.datacenters);
       setVal('hosts', this.state.hostsPerDatacenter);
-      setVal('vms', this.state.vmsPerDatacenter);
       setVal('vm-small', this.state.vmDistribution.small);
       setVal('vm-medium', this.state.vmDistribution.medium);
       setVal('vm-large', this.state.vmDistribution.large);
@@ -303,8 +272,6 @@ export class ScenarioFormManager {
       setVal('phs-hms', this.state.phs.memorySize);
       setVal('phs-iter', this.state.phs.iterations);
       setVal('phs-imp', this.state.phs.improvisations);
-
-      this.validateDistribution(id);
 
       ALGO_IDS.forEach(a => {
         const el = document.getElementById(`${id}-algo-${a}`);
@@ -324,6 +291,8 @@ export class ScenarioFormManager {
   }
 
   getConfig() {
-    return JSON.parse(JSON.stringify(this.state));
+    const cfg = JSON.parse(JSON.stringify(this.state));
+    cfg.vmsPerDatacenter = cfg.vmDistribution.small + cfg.vmDistribution.medium + cfg.vmDistribution.large;
+    return cfg;
   }
 }
