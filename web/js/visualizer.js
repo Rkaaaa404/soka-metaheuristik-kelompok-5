@@ -326,6 +326,8 @@ export class Visualizer {
     const descriptor = this.currentAlgo === 'CSA'
       ? `Antibodi #${candidate.id}${candidate.parentId !== undefined ? ` · parent #${candidate.parentId} · rank ${candidate.rank} · p(mutasi) ${(candidate.mutationRate * 100).toFixed(1)}% · ${candidate.mutatedIndices.length} gen berubah dari parent` : ''}`
       : state.phase === 'HARMONY_GENERATION' ? 'Kandidat mentah' : state.probe ? 'Probe yang dievaluasi' : state.phase === 'INIT' ? 'Seed HEFT' : 'Best final';
+    const cfg = this.formManager.getConfig();
+    const vmsPerHost = (cfg.vmDistribution?.small || 0) + (cfg.vmDistribution?.medium || 0) + (cfg.vmDistribution?.large || 0);
     this.canvasContainer.insertAdjacentHTML('afterbegin', `
       <section class="task-flow" aria-label="Pemetaan task ke VM pada fase saat ini">
         <div class="flow-heading">
@@ -333,7 +335,7 @@ export class Visualizer {
           <span class="flow-counter">${previous ? `${changed} task berpindah` : `${this.sampleTasks.length} task dialokasikan`}</span>
         </div>
         <p class="flow-explanation">${escapeHtml(explanation)}</p>
-        <p class="flow-note">Sampel ${this.sampleTasks.length} task asli · ${this.sampleVms.length} VM · ${this.formManager.getConfig().datacenters} DC.
+        <p class="flow-note">Sampel ${this.sampleTasks.length} task asli · ${this.sampleVms.length} VM (${cfg.datacenters} DC · ${cfg.hostsPerDatacenter} host/DC · ${vmsPerHost} VM/host).
           Demo ringkas: ${this.currentAlgo === 'CSA' ? '6 antibodi, 3 parent, 10 generasi, beta 1' : '4 entri HM, 10 iterasi, 3 improvisasi'}.
           Animasi adalah perpindahan pemetaan antarkandidat, bukan migrasi CloudSim saat runtime.</p>
         <div class="flow-source"><span class="flow-source-dot"></span><strong>Sumber task · dataset GoCJ</strong><span>Token T = ID task dataset</span></div>
@@ -342,7 +344,7 @@ export class Visualizer {
             const capacity = candidate.capacityFactors[index];
             const oldCapacity = previous?.capacityFactors[index];
             return `<section class="flow-vm ${capacity === 0 ? 'flow-vm-off' : ''}" data-flow-vm="${index}">
-              <div class="flow-vm-heading"><strong>VM ${index}</strong><span>DC ${vm.datacenterIndex} · ${vm.type}</span></div>
+              <div class="flow-vm-heading"><strong>VM ${index}</strong><span>DC ${vm.datacenterIndex} · Host ${vm.hostIndex} · ${vm.type}</span></div>
               <div class="flow-capacity">${oldCapacity !== undefined && oldCapacity !== capacity ? `${oldCapacity * 100}% → ` : ''}${capacity * 100}% kapasitas · ${vm.pes} PE</div>
               <div class="flow-token-list">${tasksByVm[index].map(task => {
                 const moved = !previous || previous.assignedVm[task.id] !== index;
