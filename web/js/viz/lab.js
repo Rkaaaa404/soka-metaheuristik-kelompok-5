@@ -2,7 +2,8 @@ import { csaStepGenerator } from '../algorithms/csa.js';
 import { phsStepGenerator } from '../algorithms/phs.js';
 import { decodeSchedule } from '../algorithms/decoder.js';
 import { Api } from '../api.js';
-import { esc, fmt, vmColor, snapshotRects, flip, lineChart, scatter, reducedMotion } from './util.js';
+import { mountPlayer } from '../remotion/bundle.js';
+import { esc, fmt, vmColor, lineChart, scatter, reducedMotion } from './util.js';
 
 const VM_TYPES = {
   S: { type: 'Small', nominalMips: 500, pes: 1 },
@@ -73,9 +74,8 @@ export class Lab {
     this.allTasks = [];
     this.frames = [];
     this.idx = 0;
-    this.timer = null;
     this.speed = 1;
-    this.anims = [];
+    this.player = null;
     this.build();
   }
 
@@ -120,10 +120,8 @@ export class Lab {
               <div class="phase-strip" data-ref="phases"></div>
               <p class="status-line" data-ref="status" aria-live="polite" style="margin-top:.5rem"></p>
             </div>
-            <div class="card"><div data-ref="main"></div></div>
-            <div class="card">
-              <div class="card-title"><span data-ref="lanes-title">Peta task → VM</span><span class="muted small" data-ref="lanes-delta"></span></div>
-              <div class="lanes" data-ref="lanes"></div>
+            <div class="card lab-video"><div data-ref="video"></div>
+              <p class="note" style="margin-top:.5rem">Kiri: populasi/memori (baris = jadwal, kotak = VM tiap task). Kanan: jadwal yang disorot dijalankan sebagai Gantt; garis merah = makespan.</p>
             </div>
           </div>
           <aside class="lab-side">
@@ -136,7 +134,7 @@ export class Lab {
 
       <div class="lab-stage" data-stage-panel="solution" hidden></div>`;
     const $ = s => this.root.querySelector(`[data-ref="${s}"]`);
-    this.el = Object.fromEntries(['param-summary', 'scrub', 'speed', 'count', 'phases', 'status', 'main', 'lanes', 'lanes-title', 'lanes-delta', 'pseudo', 'conv', 'extra', 'extra-title'].map(k => [k, $(k)]));
+    this.el = Object.fromEntries(['param-summary', 'scrub', 'speed', 'count', 'phases', 'status', 'video', 'pseudo', 'conv', 'extra', 'extra-title'].map(k => [k, $(k)]));
 
     this.root.querySelectorAll('[data-algo]').forEach(b => b.addEventListener('click', () => this.setAlgo(b.dataset.algo)));
     this.root.querySelectorAll('[data-stage]').forEach(b => b.addEventListener('click', () => this.setStage(b.dataset.stage)));
@@ -149,9 +147,9 @@ export class Lab {
     act('back', () => { this.pause(); this.show(this.idx - 1); });
     act('fwd', () => { this.pause(); this.show(this.idx + 1); });
     act('last', () => { this.pause(); this.show(this.frames.length - 1); });
-    act('play', () => (this.timer ? this.pause() : this.play()));
+    act('play', () => (this.player?.isPlaying() ? this.pause() : this.play()));
     this.el.scrub.addEventListener('input', e => { this.pause(); this.show(+e.target.value, { animate: false }); });
-    this.el.speed.addEventListener('change', e => { this.speed = +e.target.value; if (this.timer) { this.pause(); this.play(); } });
+    this.el.speed.addEventListener('change', e => { this.speed = +e.target.value; this.player?.setRate(this.speed); });
 
     let debounce;
     this.root.querySelectorAll('[data-param]').forEach(inp => {
@@ -172,7 +170,7 @@ export class Lab {
       if (['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
       if (e.key === '.') { this.pause(); this.show(this.idx + 1); }
       else if (e.key === ',') { this.pause(); this.show(this.idx - 1); }
-      else if (e.key === ' ') { e.preventDefault(); this.timer ? this.pause() : this.play(); }
+      else if (e.key === ' ') { e.preventDefault(); this.player?.isPlaying() ? this.pause() : this.play(); }
     });
   }
 
@@ -246,184 +244,66 @@ export class Lab {
     this.vms = vms;
     this.frames = this.runAlgo(this.algo, tasks, vms);
     this.el.scrub.max = this.frames.length - 1;
-    this.prevShown = null;
-    this.show(0, { animate: false });
+    const props = { frames: this.frames, tasks, vms, totalHosts: TOTAL_HOSTS };
+    const comp = this.algo === 'CSA' ? 'csa-run' : 'phs-run';
+    if (!this.player) {
+      this.player = mountPlayer(this.el.video, comp, props)
+        .on('step', i => this.sync(i))
+        .on('play', () => this.setPlayBtn(true))
+        .on('pause', () => this.setPlayBtn(false))
+        .on('ended', () => this.setPlayBtn(false));
+      this.player.setRate(this.speed);
+    } else {
+      this.player.update(props, comp);
+    }
+    this.idx = -1;
+    this.sync(0);
     if (this.stage === 'problem') this.renderProblem();
     if (this.stage === 'solution') this.renderSolution();
   }
 
   play() {
-    if (this.timer || !this.frames.length) return;
-    if (this.idx >= this.frames.length - 1) this.show(0, { animate: false });
-    const btn = this.root.querySelector('[data-act="play"]');
-    btn.textContent = '❚❚';
-    btn.setAttribute('aria-label', 'Jeda');
-    this.timer = setInterval(() => {
-      if (this.idx >= this.frames.length - 1) return this.pause();
-      this.show(this.idx + 1);
-    }, 1300 / this.speed);
+    if (!this.player || !this.frames.length) return;
+    if (this.idx >= this.frames.length - 1) this.player.seekTo(0);
+    this.player.play();
   }
 
-  pause() {
-    clearInterval(this.timer);
-    this.timer = null;
+  pause() { this.player?.pause(); }
+
+  setPlayBtn(on) {
     const btn = this.root.querySelector('[data-act="play"]');
-    if (btn) { btn.textContent = '▶'; btn.setAttribute('aria-label', 'Putar'); }
+    btn.textContent = on ? '❚❚' : '▶';
+    btn.setAttribute('aria-label', on ? 'Jeda' : 'Putar');
   }
 
   enter() { this.load(); }
   leave() { this.pause(); }
 
   /* ---------------------------------------------------------------- */
+  /** Go to algorithm step i: the video plays that step's transition (or jumps when animate=false). */
   show(i, { animate = true } = {}) {
-    if (!this.frames.length) return;
-    this.idx = Math.max(0, Math.min(this.frames.length - 1, i));
-    const s = this.frames[this.idx];
-    const prev = this.idx > 0 ? this.frames[this.idx - 1] : null;
-    this.el.scrub.value = this.idx;
-    this.el.count.textContent = `${this.idx + 1} / ${this.frames.length}`;
-    const animOK = animate && !reducedMotion();
-    this.anims.forEach(a => a.cancel());
-    this.anims = [];
+    if (!this.player || !this.frames.length) return;
+    this.player.seekStep(Math.max(0, Math.min(this.frames.length - 1, i)), { animate: animate && !reducedMotion() });
+  }
 
-    // phase strip + status
+  /** Player reached step i (playing, stepping or scrubbing): update the HTML around the video. */
+  sync(i) {
+    if (i === this.idx || !this.frames.length) return;
+    this.idx = i;
+    const s = this.frames[i];
+    this.el.scrub.value = i;
+    this.el.count.textContent = `${i + 1} / ${this.frames.length}`;
+
     const phases = Object.keys(PHASE_LINES[this.algo]);
     this.el.phases.innerHTML = phases.map(p => `<span class="${p === s.phase ? 'on' : ''}">${PHASE_LABEL[p]}</span>`).join('');
     const iter = this.algo === 'CSA' ? `Generasi ${s.generation}/${s.maxGenerations}` : `Iterasi ${s.iteration}/${s.maxIterations}`;
     this.el.status.innerHTML = `<b>${iter}</b> · ${esc(s.message)}`;
 
-    // pseudocode
     const on = PHASE_LINES[this.algo][s.phase] || [];
     this.el.pseudo.innerHTML = PSEUDO[this.algo].map((l, k) =>
       `<li class="${l.startsWith('  ') ? 'ind' : ''} ${on.includes(k) ? 'on' : ''}">${esc(l.trim())}</li>`).join('');
 
-    // main view (with FLIP of rows)
-    const before = animOK ? snapshotRects(this.el.main, 'data-key') : new Map();
-    this.el.main.innerHTML = this.algo === 'CSA' ? this.csaView(s, prev) : this.phsView(s, prev);
-    if (animOK) this.anims.push(...flip(this.el.main, 'data-key', before));
-
-    this.renderLanes(s, animOK);
     this.renderSide(s);
-  }
-
-  /* ---------------- CSA ---------------- */
-  csaView(s, prev) {
-    const hl = (s.candidate || s.best)?.id;
-    let rows = [];
-    const row = (c, extra = {}) => ({
-      key: extra.key ?? `ab-${c.id}`, label: extra.label ?? `Ab${c.id}`, genes: c.assignedVm,
-      mut: extra.mut || [], cls: extra.cls || '', val: extra.val ?? `${fmt(c.makespan, 1)} s · F ${c.fitness?.toFixed(3) ?? '–'}`,
-      hl: c.id !== undefined && c.id === hl
-    });
-    if (s.phase === 'SELECTION') {
-      const ids = new Set(s.parents.map(p => p.id));
-      rows = s.population.map(c => row(c, ids.has(c.id)
-        ? { cls: 'sel', label: `#${s.parents.find(p => p.id === c.id).rank} Ab${c.id}` }
-        : { cls: 'out' }));
-    } else if (s.phase === 'CLONING') {
-      // Clone ids are assigned in the next (MUTATION) frame, in the same order.
-      const next = this.frames[this.idx + 1];
-      const futureIds = next?.phase === 'MUTATION' ? next.mutatedClones.map(c => c.id) : [];
-      let j = 0;
-      s.cloneGroups.forEach((g, r) => {
-        rows.push(row(g.parent, { cls: 'sel', label: `#${r + 1} Ab${g.parent.id}` }));
-        g.clones.forEach((c, k) => {
-          const id = futureIds[j++];
-          rows.push({ key: id !== undefined ? `ab-${id}` : `cl-${g.parent.id}-${k}`, label: `  klon ${k + 1}`, genes: c.assignedVm, mut: [], cls: 'clone enter', val: `p_mut ${(c.mutationRate * 100).toFixed(1)}%` });
-        });
-      });
-    } else if (s.phase === 'MUTATION') {
-      rows = s.mutatedClones.map(c => row(c, { label: `Ab${c.id} ← #${c.rank}`, mut: c.mutatedIndices, cls: 'clone' }));
-    } else if (s.phase === 'SURVIVOR' && prev?.phase === 'MUTATION') {
-      const alive = new Set(s.population.map(c => c.id));
-      const pool = [...prev.population, ...prev.mutatedClones].sort((a, b) => a.fitness - b.fitness || a.id - b.id);
-      rows = pool.map(c => row(c, { cls: alive.has(c.id) ? 'sel' : 'out' }));
-    } else {
-      rows = s.population.map(c => row(c));
-    }
-    const legend = this.vmLegend();
-    return `<div class="card-title"><span>${s.phase === 'CLONING' ? 'Parent & klon' : s.phase === 'MUTATION' ? 'Klon setelah hipermutasi' : 'Populasi antibodi'} <span class="muted">· baris = jadwal, kotak = VM untuk task</span></span>${legend}</div>
-      ${this.geneTable(rows)}`;
-  }
-
-  geneTable(rows, { offVms = null } = {}) {
-    const n = this.tasks.length;
-    return `<div class="grid-wrap"><table class="gene-table">
-      <thead><tr><th class="lbl"></th>${Array.from({ length: n }, (_, i) => `<th title="Task GoCJ #${this.tasks[i].datasetId}">t${i}</th>`).join('')}<th></th></tr></thead>
-      <tbody>${rows.map(r => `<tr class="gene-row ${r.cls} ${r.hl ? 'hl' : ''}" data-key="${r.key}">
-        <td class="lbl">${esc(r.label)}</td>
-        ${r.genes.map((v, t) => `<td><div class="gene ${r.mut.includes(t) ? 'mut' : ''} ${(r.off || offVms)?.[v] === 0 ? 'off' : ''}" style="--gc:${vmColor(v)}" title="t${t} → VM ${v}">${v}</div></td>`).join('')}
-        <td class="val">${r.val}</td></tr>`).join('')}</tbody></table></div>`;
-  }
-
-  vmLegend() {
-    return `<span class="vm-legend">${this.vms.map((v, i) => `<span style="--gc:${vmColor(i)}"><i></i>VM${i} ${v.type[0]}</span>`).join('')}</span>`;
-  }
-
-  /* ---------------- PHS ---------------- */
-  phsView(s, prev) {
-    const isSched = s.rhythm === 'Schedule';
-    let worst = -1;
-    if (s.phase === 'MEMORY_UPDATE') {
-      const hm = isSched ? prev.scheduleHm : prev.resourceHm;
-      worst = hm.reduce((w, e, i) => (e.makespan > hm[w].makespan ? i : w), 0);
-    }
-    const sRows = s.scheduleHm.map((e, i) => ({
-      key: `hs-${i}`, label: e.isHeftSeed ? `HM${i} HEFT` : `HM${i}`, genes: e.assignedVm, mut: [], off: e.capacityFactors,
-      cls: (isSched && i === worst) ? (s.accepted ? 'sel replaced' : 'worst') : '', val: `${fmt(e.makespan, 1)} s`
-    }));
-    const capRow = (c, cls = '') => `<div class="cap-row ${cls}">${c.map((v, i) => `<div class="cap-cell" style="--gc:${vmColor(i)}" title="VM ${i}: ${v * 100}%"><i style="height:${v * 100}%"></i><em>${v * 100}</em></div>`).join('')}</div>`;
-    const rRows = s.resourceHm.map((e, i) => `<div class="hm-res ${!isSched && i === worst ? (s.accepted ? 'replaced' : 'worst') : ''}">
-      <span class="lbl mono small">HM${i}</span>${capRow(e.capacityFactors)}<span class="mono small muted">${fmt(e.makespan, 1)} s</span></div>`).join('');
-
-    let probe = '';
-    const cand = s.probe || (s.phase === 'HARMONY_GENERATION' ? s.candidate : null);
-    if (cand) {
-      const base = s.phase === 'IMPROVISATION_AND_REPAIR' && prev?.candidate ? prev.candidate : null;
-      const mut = base ? cand.assignedVm.map((v, t) => (v !== base.assignedVm[t] ? t : -1)).filter(t => t >= 0) : [];
-      const cls = s.phase === 'MEMORY_UPDATE' ? (s.accepted ? 'accepted' : 'rejected') : '';
-      const head = s.phase === 'HARMONY_GENERATION'
-        ? `Probe mentah · jadwal: <b>${esc(s.scheduleMethod)}</b> · resource: <b>${esc(s.resourceMethod)}</b>`
-        : s.phase === 'IMPROVISATION_AND_REPAIR' ? `Setelah improvisasi + repair · makespan <b>${fmt(cand.makespan, 1)} s</b>`
-          : s.accepted ? `Diterima ✓ ${fmt(s.probeMakespan, 1)} s &lt; ${fmt(s.worstMakespan, 1)} s → menggantikan HM terburuk`
-            : `Ditolak ✕ ${fmt(s.probeMakespan, 1)} s ≥ ${fmt(s.worstMakespan, 1)} s (terburuk)`;
-      probe = `<div class="probe-box ${cls}" data-key="probe">
-        <div class="small" style="margin-bottom:.35rem">${head}</div>
-        ${this.geneTable([{ key: 'p', label: 'probe', genes: cand.assignedVm, mut, off: cand.capacityFactors, cls: '', val: '' }])}
-        <div style="display:flex;gap:.5rem;align-items:center;margin-top:.35rem"><span class="mono small muted">kapasitas</span>${capRow(cand.capacityFactors)}</div>
-        ${s.operations?.length ? `<div class="ops">${s.operations.map(o => `<span>${esc(o)}</span>`).join('')}</div>` : ''}
-      </div>`;
-    }
-    return `<div class="card-title"><span class="rhythm"><span class="drum ${isSched ? 'on' : ''}"><i></i>Ritme jadwal</span><span class="drum ${s.rhythm === 'Resource' ? 'on' : ''}"><i></i>Ritme resource</span></span>${this.vmLegend()}</div>
-      ${probe}
-      <div class="hm-wrap" style="margin-top:.75rem">
-        <div><div class="tiny-h">Harmony Memory · Jadwal</div>${this.geneTable(sRows)}</div>
-        <div><div class="tiny-h">Harmony Memory · Resource</div><div class="hm-res-list">${rRows}</div></div>
-      </div>`;
-  }
-
-  /* ---------------- lanes (highlighted candidate) ---------------- */
-  renderLanes(s, animOK) {
-    const cand = s.probe || s.candidate || s.best;
-    if (!cand) return;
-    const prevCand = this.prevShown;
-    const before = animOK ? snapshotRects(this.el.lanes, 'data-tok') : new Map();
-    const byVm = this.vms.map(() => []);
-    cand.taskOrder.forEach(t => byVm[cand.assignedVm[t]].push(t));
-    const moved = prevCand ? cand.assignedVm.filter((v, t) => prevCand.assignedVm[t] !== v).length : 0;
-    this.el['lanes-title'].textContent = this.algo === 'CSA'
-      ? `Peta task → VM · ${cand.id !== undefined ? `Ab${cand.id}` : 'kandidat'}`
-      : `Peta task → VM · ${s.phase === 'FINISHED' ? 'harmoni terbaik' : s.phase === 'INIT' ? 'seed HEFT' : 'probe'}`;
-    this.el['lanes-delta'].textContent = prevCand ? `${moved} task berpindah` : '';
-    this.el.lanes.innerHTML = this.vms.map((vm, v) => {
-      const off = cand.capacityFactors[v] === 0;
-      return `<div class="lane ${off ? 'off' : ''}">
-        <div class="lane-head"><b style="--gc:${vmColor(v)}"><i></i>VM ${v}</b><span>${vm.type} · ${vm.nominalMips * cand.capacityFactors[v]} MIPS×${vm.pes}</span></div>
-        <div class="lane-track">${byVm[v].map(t => `<span class="token ${prevCand && prevCand.assignedVm[t] !== v ? 'moved' : ''}" data-tok="${t}" style="--gc:${vmColor(v)}" title="t${t} (GoCJ #${this.tasks[t].datasetId}) · ${this.tasks[t].lengthMi.toLocaleString('id-ID')} MI">t${t}</span>`).join('')}</div>
-      </div>`;
-    }).join('');
-    if (animOK) this.anims.push(...flip(this.el.lanes, 'data-tok', before, { duration: 800 / this.speed }));
-    this.prevShown = cand;
   }
 
   /* ---------------- side panels ---------------- */

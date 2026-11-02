@@ -1,0 +1,42 @@
+/* Studio only: copy of the :root tokens in web/styles.css (the deck provides them at runtime). */
+:root {
+  color-scheme: light;
+  --bg: #f5f2eb;
+  --surface: #fffcf6;
+  --surface-alt: #edeae2;
+  --border: #dedfd4;
+  --border-strong: #c2cbc0;
+  --fg: #203b38;
+  --fg-muted: #626f65;
+  --fg-faint: #8b958c;
+  --primary: #176b60;
+  --primary-hover: #105247;
+  --primary-soft: #dcebe5;
+  --accent: #b97246;
+  --accent-soft: #f5e4d5;
+  --success: #27724f;
+  --warning: #a86a22;
+  --error: #ad4034;
+  --error-soft: #f6dcd7;
+
+  --csa: #176b60;
+  --csa-soft: #dcebe5;
+  --phs: #b5652f;
+  --phs-soft: #f6e3d3;
+
+  --vm-small: #3d7f74;
+  --vm-medium: #8a9440;
+  --vm-large: #b97246;
+
+  /* Categorical palette for VM identity in the lab (max 8 VMs). */
+  --c0: #2f6f9f; --c1: #d08c2c; --c2: #3f8f5a; --c3: #b5524a;
+  --c4: #7a5ea8; --c5: #2a9d9a; --c6: #a0703a; --c7: #5f6b7a;
+
+  --radius: 14px;
+  --radius-sm: 8px;
+  --shadow: 0 1px 0 rgba(32, 59, 56, .04), 0 10px 30px -18px rgba(32, 59, 56, .35);
+  --header-h: 60px;
+  --font-sans: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-display: 'Space Grotesk', 'Inter', 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', Consolas, monospace;
+}
