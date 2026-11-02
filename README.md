@@ -1,6 +1,6 @@
 # Tugas 5 — Presentasi Web: Metaheuristik untuk Cloud Task Scheduling
 
-Media presentasi interaktif berbasis web (HTML5/CSS3/JavaScript ES Modules, tanpa build step) yang menyajikan inspirasi alam, cara kerja step-by-step, lab interaktif bergaya VisuAlgo, studi kasus, dan evaluasi algoritma metaheuristik untuk *cloud task scheduling* berbasis **CloudSim 7.0.1** dan dataset riil **GoCJ** (Google Cloud Jobs).
+Media presentasi interaktif berbasis web (HTML5/CSS3/JavaScript ES Modules; animasi slide 2–8 dibuat dengan **[Remotion](https://www.remotion.dev/)** dan diputar lewat `@remotion/player`) yang menyajikan inspirasi alam, cara kerja step-by-step, lab interaktif bergaya VisuAlgo, studi kasus, dan evaluasi algoritma metaheuristik untuk *cloud task scheduling* berbasis **CloudSim 7.0.1** dan dataset riil **GoCJ** (Google Cloud Jobs).
 
 🌐 **Live (GitHub Pages):** https://rkaaaa404.github.io/soka-metaheuristik-kelompok-5/
 
@@ -27,6 +27,11 @@ task-5/
 ├── docs/                         # task.md, rencana, dan 2 paper rujukan (PDF)
 ├── java/                         # Backend Java + CloudSim 7.0.1 (Gradle) + JUnit
 ├── scripts/export_snapshots.py   # Ekspor hasil CloudSim nyata → web/data/results/
+├── remotion/                     # Komposisi Remotion (React + TS) → di-build ke web/js/remotion/bundle.js
+│   └── src/
+│       ├── index.tsx             # jembatan Player ↔ JS slide (mountPlayer: seekStep, play, update, event)
+│       ├── primitives/           # GeneRows (baris gen + flip/spawn), TaskGantt (task terbang antar VM), CapRow
+│       └── compositions/         # lab/ (CsaRun, PhsRun) · flows/ (cara kerja) · stories/ (slide 2, 3, 4, 6)
 └── web/
     ├── index.html                # 11 slide
     ├── styles.css, viz.css
@@ -36,7 +41,8 @@ task-5/
     │   ├── results.js            # slide studi kasus, evaluasi, kesimpulan
     │   ├── scenario-form.js      # form skenario CloudSim (mode live)
     │   ├── algorithms/           # CSA, PHS, decoder, RNG Mulberry32 (identik dgn Java)
-    │   └── viz/                  # story/scenes (animasi), flows (cara kerja), lab (VisuAlgo)
+    │   ├── viz/                  # story/scenes, flows, lab: kontrol + teks di sekitar player Remotion
+    │   └── remotion/bundle.js    # hasil build remotion/ (tidak di-commit; dibangun CI)
     ├── data/                     # sampel task GoCJ + snapshot hasil CloudSim (1000/5000/10000)
     └── papers/                   # salinan PDF paper untuk tautan relatif
 ```
@@ -54,7 +60,7 @@ task-5/
 | 5 | CSA · Cara kerja | Flowchart 6 langkah + ilustrasi operator + rumus + kartu paper (Jena, 2017) |
 | 6 | PHS · Inspired by music | Animasi improvisasi jazz & poliritme 3:4 + pemetaan musik ↔ scheduling |
 | 7 | PHS · Cara kerja | Flowchart 6 langkah + ilustrasi operator + kartu paper (Melnik & Trofimenko, 2015) |
-| 8 | Lab interaktif | Masalah → Proses → Solusi. Algoritma dijalankan live; ⏮ ◀ ▶ ▶\| ⏭, scrubber, kecepatan, pseudocode ter-highlight, grafik konvergensi, arsip Pareto / statistik HM, token task yang berpindah, parameter bisa diubah |
+| 8 | Lab interaktif | Masalah → Proses → Solusi. Algoritma dijalankan live lalu diputar sebagai video Remotion: baris jadwal bergeser saat seleksi, klon muncul dari parent, gen bermutasi berbalik warna, dan jadwal yang disorot dieksekusi sebagai Gantt (task terbang antar VM, garis makespan). ⏮ ◀ ▶ ▶\| ⏭, scrubber, kecepatan, pseudocode ter-highlight, grafik konvergensi, arsip Pareto / statistik HM, parameter bisa diubah |
 | 9 | Studi kasus | CloudSim: infrastruktur 2 DC × 5 host × 5 VM, heatmap utilisasi per algoritma, timeline 1000 cloudlet, 9 metrik |
 | 10 | Evaluasi | 7 algoritma × 9 metrik: bar chart per metrik + tabel lengkap (mean ± sd) |
 | 11 | Kesimpulan & referensi | Takeaway dihitung dari data + 6 referensi |
@@ -108,7 +114,19 @@ Navigasi: `←`/`→`, `PageUp`/`PageDown`, `Home`/`End`, atau `#slide-N` di URL
 
 ### Prasyarat
 * **Java Development Kit (JDK):** Versi 21 atau lebih tinggi (mendukung JDK 25).
+* **Node.js** 20+ (untuk mem-build animasi Remotion).
 * **Browser:** Chrome / Chromium / Edge / Firefox modern dengan dukungan ES Modules.
+
+### 0. Build animasi Remotion (wajib sekali, dan setiap mengubah `remotion/`)
+
+```powershell
+cd remotion
+npm ci
+npm run build      # → web/js/remotion/bundle.js
+npm run studio     # opsional: Remotion Studio untuk melihat/scrub tiap komposisi
+```
+
+Tanpa `bundle.js`, slide tidak bisa dimuat. File ini tidak di-commit; workflow Pages membangunnya otomatis.
 
 ### 1. Menjalankan Backend & Slide Presentasi
 Jalankan perintah berikut melalui terminal (PowerShell atau Command Prompt) dari folder `java/`:
@@ -140,7 +158,7 @@ Skrip memanggil `/api/simulate`, menunggu job selesai, lalu menulis `web/data/re
 
 ### Deploy GitHub Pages
 
-Workflow `.github/workflows/pages.yml` men-deploy folder `web/` setiap push ke `main`. Sekali saja: **Settings → Pages → Source: GitHub Actions**.
+Workflow `.github/workflows/pages.yml` mem-build `remotion/` lalu men-deploy folder `web/` setiap push ke `main`. Sekali saja: **Settings → Pages → Source: GitHub Actions**.
 
 ### Catatan skenario
 

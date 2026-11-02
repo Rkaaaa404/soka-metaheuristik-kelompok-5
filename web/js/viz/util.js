@@ -12,35 +12,6 @@ export const fmt = (n, d = 2) => {
   return n.toLocaleString('id-ID', { minimumFractionDigits: d, maximumFractionDigits: d });
 };
 
-/**
- * FLIP: record element rects keyed by `attr`, then after a re-render animate
- * every element from its old rect to its new one.
- */
-export function snapshotRects(root, attr) {
-  const map = new Map();
-  root?.querySelectorAll(`[${attr}]`).forEach(n => map.set(n.getAttribute(attr), n.getBoundingClientRect()));
-  return map;
-}
-
-export function flip(root, attr, before, { duration = 650, from = null } = {}) {
-  if (reducedMotion() || !root) return [];
-  const anims = [];
-  root.querySelectorAll(`[${attr}]`).forEach(n => {
-    const key = n.getAttribute(attr);
-    const old = before.get(key) || from;
-    if (!old) return;
-    const now = n.getBoundingClientRect();
-    const dx = old.left - now.left;
-    const dy = old.top - now.top;
-    if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
-    anims.push(n.animate(
-      [{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }],
-      { duration, easing: 'cubic-bezier(.22,.75,.25,1)' }
-    ));
-  });
-  return anims;
-}
-
 /** Tiny SVG line chart. points: [{x, y}] */
 export function lineChart({ points, width = 280, height = 140, xMax, yMin, yMax, xLabel = '', yLabel = '' }) {
   const pad = { l: 38, r: 8, t: 8, b: 20 };
