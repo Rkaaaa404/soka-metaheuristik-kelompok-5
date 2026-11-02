@@ -1,6 +1,8 @@
 # Tugas 5 — Presentasi Web: Metaheuristik untuk Cloud Task Scheduling
 
-Media presentasi interaktif berbasis web (HTML5/CSS3/JavaScript ES Modules) yang menyajikan teori, simulasi *live step-by-step*, dan evaluasi algoritma metaheuristik untuk *cloud task scheduling* berbasis engine **CloudSim 7.0.1** nyata dan dataset beban kerja riil **GoCJ** (Google Cloud Jobs).
+Media presentasi interaktif berbasis web (HTML5/CSS3/JavaScript ES Modules, tanpa build step) yang menyajikan inspirasi alam, cara kerja step-by-step, lab interaktif bergaya VisuAlgo, studi kasus, dan evaluasi algoritma metaheuristik untuk *cloud task scheduling* berbasis **CloudSim 7.0.1** dan dataset riil **GoCJ** (Google Cloud Jobs).
+
+🌐 **Live (GitHub Pages):** https://rkaaaa404.github.io/soka-metaheuristik-kelompok-5/
 
 ---
 
@@ -18,16 +20,46 @@ Media presentasi interaktif berbasis web (HTML5/CSS3/JavaScript ES Modules) yang
 
 ## 📂 Struktur Direktori
 
-Root folder diorganisasikan secara bersih dan modular menjadi empat folder utama:
-
 ```
 task-5/
-├── dataset/    # 10 file GoCJ CSV (1000 s.d. 10000 task) & file referensi
-├── docs/       # Dokumen penugasan (task.md), rencana implementasi, dan 2 paper rujukan PDF
-├── java/       # Backend Java (CloudSim 7.0.1), Gradle 9.6.0 wrapper, dan JUnit test suite
-├── web/        # Web slides presentation (HTML, CSS, JS Native, Visualizer)
-└── README.md   # Dokumentasi dan panduan penggunaan
+├── .github/workflows/pages.yml   # Deploy folder web/ ke GitHub Pages
+├── dataset/                      # 10 file GoCJ CSV (1000 s.d. 10000 task)
+├── docs/                         # task.md, rencana, dan 2 paper rujukan (PDF)
+├── java/                         # Backend Java + CloudSim 7.0.1 (Gradle) + JUnit
+├── scripts/export_snapshots.py   # Ekspor hasil CloudSim nyata → web/data/results/
+└── web/
+    ├── index.html                # 11 slide
+    ├── styles.css, viz.css
+    ├── js/
+    │   ├── app.js                # navigasi slide + lifecycle animasi
+    │   ├── api.js                # deteksi backend; fallback ke data statis
+    │   ├── results.js            # slide studi kasus, evaluasi, kesimpulan
+    │   ├── scenario-form.js      # form skenario CloudSim (mode live)
+    │   ├── algorithms/           # CSA, PHS, decoder, RNG Mulberry32 (identik dgn Java)
+    │   └── viz/                  # story/scenes (animasi), flows (cara kerja), lab (VisuAlgo)
+    ├── data/                     # sampel task GoCJ + snapshot hasil CloudSim (1000/5000/10000)
+    └── papers/                   # salinan PDF paper untuk tautan relatif
 ```
+
+---
+
+## 🎞️ Alur Slide
+
+| # | Slide | Isi visual |
+|---|---|---|
+| 1 | Pengenalan | Judul, anggota Kelompok 5 |
+| 2 | Masalah | Animasi antrean → penempatan asal → penempatan cerdas (Gantt per VM), kalkulator ruang solusi Mᴺ |
+| 3 | Metaheuristik | Lanskap fitness: exploration vs exploitation vs seimbang |
+| 4 | CSA · Inspired by nature | Animasi seleksi klonal sistem imun + pemetaan biologi ↔ scheduling |
+| 5 | CSA · Cara kerja | Flowchart 6 langkah + ilustrasi operator + rumus + kartu paper (Jena, 2017) |
+| 6 | PHS · Inspired by music | Animasi improvisasi jazz & poliritme 3:4 + pemetaan musik ↔ scheduling |
+| 7 | PHS · Cara kerja | Flowchart 6 langkah + ilustrasi operator + kartu paper (Melnik & Trofimenko, 2015) |
+| 8 | Lab interaktif | Masalah → Proses → Solusi. Algoritma dijalankan live; ⏮ ◀ ▶ ▶\| ⏭, scrubber, kecepatan, pseudocode ter-highlight, grafik konvergensi, arsip Pareto / statistik HM, token task yang berpindah, parameter bisa diubah |
+| 9 | Studi kasus | CloudSim: infrastruktur 2 DC × 5 host × 5 VM, heatmap utilisasi per algoritma, timeline 1000 cloudlet, 9 metrik |
+| 10 | Evaluasi | 7 algoritma × 9 metrik: bar chart per metrik + tabel lengkap (mean ± sd) |
+| 11 | Kesimpulan & referensi | Takeaway dihitung dari data + 6 referensi |
+
+Navigasi: `←`/`→`, `PageUp`/`PageDown`, `Home`/`End`, atau `#slide-N` di URL. Di Lab: `,` / `.` untuk langkah, `Space` untuk play/pause.
 
 ---
 
@@ -92,17 +124,27 @@ Atau jalankan distribusi terkompilasi langsung:
 ```
 
 ### 2. Mengakses Presentasi
-Buka browser dan arahkan ke:
-👉 **`http://localhost:8080`**
 
-* **Navigasi Slide:** Gunakan tombol **Prev** / **Next** di header, atau tombol keyboard `ArrowLeft` / `ArrowRight` (juga mendukung `Home` untuk slide 1 dan `End` untuk slide 5).
-* **Slide 1:** Profil Kelompok 5 dan pengenalan topik.
-* **Slide 2:** Konsep NP-Hard cloud task scheduling, trade-off eksplorasi-eksploitasi, dan diagram hierarki sumber daya.
-* **Slide 3:** Teori mendalam CSA & PHS, formula, sitasi langsung ke PDF lokal di `/docs/`, dan komparasi paper vs adaptasi.
-* **Slide 4:** Demo live dengan token task yang berpindah ke VM sesuai kandidat algoritma, penjelasan eksplorasi/eksploitasi, perubahan kapasitas PHS, serta pemetaan sebelum/sesudah. Animasi menunjukkan perubahan solusi optimasi, bukan migrasi cloudlet saat runtime. Mode backend menjalankan **seluruh tujuh algoritma** dengan jumlah run sesuai form.
-* **Slide 5:** Langsung membaca eksperimen yang dijalankan dari slide 4, tanpa simulasi ulang. Tabel menampilkan sembilan metrik, mean ± simpangan baku, nilai terbaik termasuk seri, dan analisis menurut tujuan (makespan, biaya, keseimbangan, overhead). Hasil lama tetap tersedia ketika run gagal dan ditandai bila konfigurasi berubah.
-* **Tampilan:** Palet cream hangat, ink dan teal; layout pitch deck responsif. Tabel lebar bergeser di dalam panel, bukan membuat halaman melebar. Reduced-motion menonaktifkan animasi perpindahan.
-* **Demo vs eksperimen:** Demo memakai subset GoCJ nyata (maksimum 30 task) dan budget optimasi ringkas yang tertulis pada visualisasi. Kegagalan pemuatan dataset tidak diganti data sintetis. Perubahan konfigurasi menghentikan playback dan meminta Reset. Mode backend tetap memakai seluruh N task dan budget konfigurasi.
+* **Lokal + backend:** buka `http://localhost:8080`. Badge header menampilkan **● Backend CloudSim live**; di slide 9 tombol *Jalankan CloudSim live* menjalankan simulasi nyata dengan konfigurasi bebas (task, DC, host, distribusi VM, run, seed, parameter CSA/PHS).
+* **GitHub Pages / server statis:** badge menampilkan **○ Snapshot CloudSim**. Algoritma di slide 2–8 tetap dihitung live di browser. Slide 9–11 memakai snapshot hasil CloudSim **nyata** (`web/data/results/`, 5 run × 7 algoritma, seed 42) untuk 1000, 5000, dan 10000 task.
+* Uji mode statis secara lokal: `python -m http.server 8000 -d web` → `http://localhost:8000`.
+
+### Memperbarui snapshot CloudSim
+
+```powershell
+cd java; .\gradlew.bat run          # terminal 1
+python scripts/export_snapshots.py  # terminal 2 (default: 1000,5000,10000 task · 5 run)
+```
+
+Skrip memanggil `/api/simulate`, menunggu job selesai, lalu menulis `web/data/results/gocj-<N>.json` + `index.json`. Alokasi per-cloudlet hanya disimpan untuk skenario terkecil agar situs tetap ringan; skenario lain menyimpan ringkasan per VM.
+
+### Deploy GitHub Pages
+
+Workflow `.github/workflows/pages.yml` men-deploy folder `web/` setiap push ke `main`. Sekali saja: **Settings → Pages → Source: GitHub Actions**.
+
+### Catatan skenario
+
+Distribusi VM diterapkan **per host** (2 Small / 2 Medium / 1 Large per host → 25 VM per DC, 50 VM total). Ini perluasan dari skenario minimal `docs/task.md` §6.3 (5 VM per DC) agar beban 1000–10000 job tidak menumpuk di 10 VM. Semua path di web bersifat relatif sehingga situs berjalan di sub-path Pages.
 
 ### 3. Catatan eksperimen lokal
 
@@ -113,13 +155,13 @@ java/build/results/<jobId>/metrik.csv
 java/build/results/<jobId>/status.json
 ```
 
-Lokasi absolut CSV ditampilkan di slide 5 dan respons API `result.exports.metricsCsv`. Tidak perlu mengunduh melalui browser; file sudah berada di komputer yang menjalankan backend. Satu baris CSV mewakili satu algoritma × satu run, berisi sembilan metrik, seed, dataset/hash SHA-256, engine/version, timestamp, serta konfigurasi lengkap dalam kolom `scenarioJson`. Nama metrik mengikuti API; satuan tercantum pada tabel metrik di atas.
+Lokasi absolut CSV ditampilkan di slide 9 (setelah run live) dan respons API `result.exports.metricsCsv`. Tidak perlu mengunduh melalui browser; file sudah berada di komputer yang menjalankan backend. Satu baris CSV mewakili satu algoritma × satu run, berisi sembilan metrik, seed, dataset/hash SHA-256, engine/version, timestamp, serta konfigurasi lengkap dalam kolom `scenarioJson`. Nama metrik mengikuti API; satuan tercantum pada tabel metrik di atas.
 
 CSV ditulis dan di-flush setelah setiap run CloudSim selesai. Hasil parsial tetap disimpan ketika eksperimen gagal atau timeout; periksa `status.json`: hanya `status: SUCCEEDED` dan `complete: true` menandakan seluruh eksperimen selesai. Setiap job memakai direktori berbeda, tidak menimpa eksperimen sebelumnya. Cache default yang dibaca ulang bukan run baru dan tidak menghasilkan CSV baru.
 
 Kolom energi tambahan memiliki `energySource=decoded-schedule-estimate`: energi tersebut merupakan estimasi decoder, **bukan pengukuran energi CloudSim**. Sembilan metrik evaluasi berasal dari jalur simulasi CloudSim; scheduling time mengukur waktu komputasi scheduler.
 
-Verifikasi perubahan: `test installDist` lulus (15 test); smoke browser menjalankan 8 task × 2 run × 7 algoritma sampai 14/14. Seluruh 126 nilai metrik CSV cocok dengan respons API. Tampilan diperiksa pada lebar 1366, 768, dan 390 px; demo CSA/PHS dijalankan sampai fase selesai.
+Verifikasi: `gradlew test` lulus (14 test). Mode statis & live diuji headless (Edge) di 1366×768 dan 390 px tanpa error JS; run live FCFS/RR/PHS menghasilkan makespan identik dengan snapshot (seed 42).
 
 ---
 
