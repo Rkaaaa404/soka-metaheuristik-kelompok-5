@@ -1,0 +1,91 @@
+/* Scene typography inside SVG */
+.anim .lbl { font: 700 12px var(--font-sans); fill: var(--fg); }
+.anim .sub { font: 500 10.5px var(--font-mono); fill: var(--fg-muted); }
+.anim .tiny { font: 600 9.5px var(--font-mono); fill: var(--fg-faint); }
+.anim .tok { font: 700 10px var(--font-mono); fill: #fff; }
+.anim .mk-lbl { font: 700 11px var(--font-mono); fill: var(--error); }
+.anim .inv { fill: #fff; }
+.anim .ok { fill: var(--success); }
+
+/* ---------- Problem (slide 2) ---------- */
+.problem-svg g[data-t] { transition: transform .9s cubic-bezier(.22,.75,.25,1); }
+.problem-svg g[data-t] rect { transition: width .9s cubic-bezier(.22,.75,.25,1); }
+.problem-svg .mk { transition: transform .9s cubic-bezier(.22,.75,.25,1), opacity .4s; }
+
+/* ---------- Landscape (slide 3) ---------- */
+.landscape-svg .agent { fill: var(--primary); stroke: var(--surface); stroke-width: 2; transition: transform .38s ease; }
+.landscape-svg .best { transition: transform .38s ease, opacity .3s; }
+
+/* ---------- Immune (slide 4) ---------- */
+.immune .bcell, .immune .clone { transform: translate(var(--x), var(--y)); }
+.immune .bcell circle { transition: stroke-width .3s, fill .4s; }
+.immune .aff, .immune .fade-in3, .immune .fade-in4, .immune .memory { opacity: 0; }
+.ge2 .immune .aff { opacity: 1; }
+.ge2 .immune .bcell.best { transform: translate(258px, 122px); }
+.ge2 .immune .bcell.best circle { stroke-width: 3; stroke: var(--primary); }
+.ge3 .immune .fade-in3 { opacity: 1; }
+.immune .clone { opacity: 0; transform: translate(calc(var(--x) + var(--fx)), calc(var(--y) + var(--fy))) scale(.4); }
+.ge3 .immune .clone { opacity: 1; transform: translate(var(--x), var(--y)); }
+.ge3 .immune .clone.r1 { transition-delay: .1s; }
+.ge3 .immune .clone.r2 { transition-delay: .35s; }
+.ge4 .immune .fade-in4 { opacity: 1; }
+.ge4 .immune .clone.mutates circle { fill: var(--mut); }
+.ge4 .immune .clone.r2 path { stroke: var(--error); }
+[data-step="4"] .immune .clone.r2 { animation: wobble .5s ease 3; }
+@keyframes wobble { 50% { transform: translate(calc(var(--x) + 3px), calc(var(--y) - 2px)) rotate(6deg); } }
+.ge5 .immune .memory { opacity: 1; }
+.ge5 .immune .clone:not(.mem) { opacity: .25; }
+.ge5 .immune .clone.mem { transform: translate(560px, 262px); }
+.ge5 .immune .clone.mem circle { stroke: var(--accent); stroke-width: 3; }
+
+/* ---------- Jazz (slide 6) ---------- */
+.jazz .probe, .jazz .cut, .jazz .verdict, .jazz .final { opacity: 0; }
+.jazz .probe { transform: translateY(-24px); }
+.ge2 .jazz .probe { opacity: 1; transform: none; }
+[data-step="2"] .jazz .cut { opacity: 1; }
+[data-step="2"] .jazz .musician text { animation: sway 1.2s ease infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes sway { 50% { transform: rotate(-10deg) scale(1.1); } }
+.jazz .rhythm { opacity: .25; }
+.ge3 .jazz .rhythm { opacity: 1; }
+.jazz .beat { fill: var(--border-strong); transform-box: fill-box; transform-origin: center; }
+.ge3 .jazz .beat.b4 { animation: beat-s 2.4s ease infinite; }
+.ge3 .jazz .beat.b3 { animation: beat-r 2.4s ease infinite; }
+@keyframes beat-s { 0%, 18% { fill: var(--c0); transform: scale(1.5); } 30%, 100% { fill: var(--border-strong); transform: none; } }
+@keyframes beat-r { 0%, 18% { fill: var(--phs); transform: scale(1.5); } 30%, 100% { fill: var(--border-strong); transform: none; } }
+.ge4 .jazz .verdict { opacity: 1; }
+.ge5 .jazz .verdict { opacity: 0; }
+.ge4 .jazz .worst rect:first-child { stroke: var(--error); stroke-width: 2; }
+.ge4 .jazz .worst { opacity: 0; }
+.ge4 .jazz .probe { transform: translate(-225px, -22px); }
+.ge5 .jazz .final { opacity: 1; }
+.ge5 .jazz .hs1 rect:first-child, .ge5 .jazz .hr1 rect:first-child { stroke: var(--phs); stroke-width: 2.5; }
+
+/* ---------- Flow mini illustrations ---------- */
+.gene-table.mini .gene { width: 22px; height: 22px; min-width: 22px; line-height: 22px; font-size: .66rem; }
+.gene-table.mini .gene-row.enter { animation-duration: .45s; }
+.gene-table .cutcol { width: 3px; background: var(--phs); border-radius: 2px; }
+.flow-desc { font-size: 1rem; }
+.hm-mini { display: grid; grid-template-columns: auto auto; gap: 1rem; align-items: start; }
+.tiny-h { font: 700 .68rem var(--font-mono); color: var(--fg-muted); margin: .2rem 0; text-transform: uppercase; letter-spacing: .04em; }
+.cap-row { display: flex; gap: 3px; margin-bottom: 3px; }
+.cap-row.enter { animation: row-in .5s ease both; }
+.cap-pair { display: flex; gap: 1.5rem; margin-top: .6rem; flex-wrap: wrap; }
+.rhythm-strip { display: flex; gap: .4rem; flex-wrap: wrap; padding: .5rem 0; }
+.rhythm-strip span { width: 62px; height: 62px; border-radius: 12px; display: grid; place-items: center; align-content: center; font: 700 1.1rem var(--font-display); color: #fff; animation: pop .5s ease both; }
+.rhythm-strip span small { font: 600 .58rem var(--font-mono); opacity: .85; }
+.rhythm-strip .s { background: var(--c0); }
+.rhythm-strip .r { background: var(--phs); }
+@keyframes pop { from { opacity: 0; transform: scale(.6); } to { opacity: 1; transform: none; } }
+
+@media (max-width: 560px) {
+  .hm-mini { grid-template-columns: minmax(0, 1fr); }
+  .gene-table.mini .gene { width: 18px; height: 18px; min-width: 18px; line-height: 18px; }
+}
+
+/* PHS resource memory rows (lab) */
+.hm-res-list { display: grid; gap: 4px; }
+.hm-res { display: flex; gap: .5rem; align-items: center; padding: 2px 4px; border-radius: 6px; }
+.hm-res .cap-row { margin: 0; }
+.hm-res.worst .lbl { color: var(--error); font-weight: 700; }
+.hm-res.replaced { animation: flash 1.2s ease; }
+.ge2 .immune .best-aff { opacity: 0; }
