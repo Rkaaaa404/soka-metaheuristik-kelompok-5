@@ -316,6 +316,7 @@ public class SimulationHttpApi {
         else if (path.endsWith(".js")) contentType = "application/javascript; charset=UTF-8";
         else if (path.endsWith(".svg")) contentType = "image/svg+xml";
         else if (path.endsWith(".json")) contentType = "application/json; charset=UTF-8";
+        else if (path.endsWith(".pdf")) contentType = "application/pdf";
 
         byte[] bytes = Files.readAllBytes(target);
         exchange.getResponseHeaders().set("Content-Type", contentType);

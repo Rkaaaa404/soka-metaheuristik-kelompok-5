@@ -1,0 +1,23 @@
+[
+  {
+    "file": "gocj-1000.json",
+    "taskCount": 1000,
+    "runs": 5,
+    "timestampUtc": "2026-11-02T13:34:23.872766600Z",
+    "wallSeconds": 14
+  },
+  {
+    "file": "gocj-5000.json",
+    "taskCount": 5000,
+    "runs": 5,
+    "timestampUtc": "2026-11-02T13:36:06.792115900Z",
+    "wallSeconds": 99
+  },
+  {
+    "file": "gocj-10000.json",
+    "taskCount": 10000,
+    "runs": 5,
+    "timestampUtc": "2026-11-02T13:39:20.950258200Z",
+    "wallSeconds": 193
+  }
+]
