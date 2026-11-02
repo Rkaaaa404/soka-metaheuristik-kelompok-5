@@ -36,6 +36,7 @@ export const problemTimeline = () => storyTimeline(3, 150);
 
 const X0 = 150, W = 470, scale = W / R.makespan;
 const laneY = (v: number) => 78 + v * 80;
+const GAIN_W = 132;
 
 type Box = { x: number; y: number; w: number };
 const queueBox = (id: number): Box => ({ x: X0 + id * 47, y: 26, w: 42 });
@@ -86,9 +87,10 @@ export const Problem: React.FC = () => {
         <text y={64} textAnchor="end" style={txt.mk}>makespan {Math.round(mkSpan)} s</text>
       </g>
       {step === 3 && (
-        <g opacity={prog(local, 90, 105)} transform={`translate(${X0 + S.makespan * scale + 12} 300)`}>
-          <rect width={92} height={24} rx={12} fill="var(--success)" />
-          <text x={46} y={16} textAnchor="middle" style={{ ...txt.tok, fontSize: 11 }}>{gain}% lebih cepat</text>
+        // pill sized for "NN% lebih cepat" in 11px mono (~6.6px/char) + 14px padding each side
+        <g opacity={prog(local, 90, 105)} transform={`translate(${X0 + S.makespan * scale + 12} 292)`}>
+          <rect width={GAIN_W} height={26} rx={13} fill="var(--success)" />
+          <text x={GAIN_W / 2} y={17.5} textAnchor="middle" style={{ ...txt.tok, fontSize: 11 }}>{gain}% lebih cepat</text>
         </g>
       )}
     </SvgStage>
