@@ -229,21 +229,6 @@ Kolom energi berisi estimasi dari decoder jadwal (`energySource=decoded-schedule
 
 </details>
 
-### Tes
-
-Ada 14 tes JUnit 5 untuk kontrak CloudSim, semantik non-preemptive, determinisme RNG Mulberry32, dan validasi input.
-
-```powershell
-cd java
-.\gradlew.bat test
-```
-
-Laporannya ada di `java/build/reports/tests/test/index.html`.
-
-### Deploy
-
-Setiap push ke `main` yang menyentuh `web/`, `remotion/`, atau workflow-nya akan mem-build `remotion/` dan men-deploy `web/`. Untuk repo baru, set dulu **Settings → Pages → Source: GitHub Actions**.
-
 ## HTTP API
 
 | Endpoint | Fungsi |
