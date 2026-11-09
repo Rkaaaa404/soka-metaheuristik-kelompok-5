@@ -14,6 +14,8 @@ export const METRICS = [
   { key: 'totalCost', label: 'Total cost', unit: 'G$', higher: false },
   { key: 'schedulingTime', label: 'Scheduling time', unit: 'ms', higher: false }
 ];
+// Batas bawah makespan snapshot: max(arrival + MI / 2000 MIPS) per dataset GoCJ pada infrastruktur default.
+const MAKESPAN_LOWER_BOUND = { 1000: 2062, 5000: 5237.5, 10000: 23173.25 };
 const algoCls = a => (a === 'CSA' ? 'csa' : a === 'PHS' ? 'phs' : '');
 
 function vmSummary(rep) {
@@ -272,12 +274,18 @@ export class Results {
     const n = R.results.length;
     const csaBehind = get('CSA', 'makespan') > get('PHS', 'makespan');
     const el = document.getElementById('takeaways');
-    if (!get('CSA') || !get('PHS') || !get('RR')) {
+    if (!get('CSA', 'makespan') || !get('PHS', 'makespan') || !get('RR', 'makespan')) {
       el.innerHTML = `<div class="takeaway" style="grid-column:1/-1"><div class="big">Run parsial</div><p>Kesimpulan otomatis membutuhkan CSA, PHS, dan RR dalam satu eksperimen. Pilih snapshot di slide 9/10 atau jalankan ketujuh algoritma.</p></div>`;
       return;
     }
+    const phsMk = get('PHS', 'makespan');
+    const bound = this.source === 'snapshot' ? MAKESPAN_LOWER_BOUND[R.scenario.taskCount] : undefined;
+    const gap = bound ? phsMk / bound - 1 : 0;
+    const heftNote = !bound ? ''
+      : gap < 1e-6 ? ` Jadwalnya identik dengan seed HEFT di semua run, dan HEFT sudah menyentuh batas bawah teoretis (${fmt(bound, 0)} s), jadi tidak ada ruang untuk membaik.`
+      : ` Jadwalnya identik dengan seed HEFT di semua run, ${fmt(gap * 100, 1)}% di atas batas bawah teoretis (${fmt(bound, 0)} s): improvisasi PHS gagal memperbaikinya.`;
     el.innerHTML = `
-      <div class="takeaway phs"><div class="big">PHS #${rank('PHS', 'makespan')}</div><p>Seed HEFT + dua memori → makespan <b>${fmt(get('PHS', 'makespan'), 0)} s</b>, peringkat ${rank('PHS', 'makespan')} dari ${n}, ${fmt((1 - get('PHS', 'makespan') / get('RR', 'makespan')) * 100, 0)}% lebih cepat dari Round Robin.</p></div>
+      <div class="takeaway phs"><div class="big">PHS #${rank('PHS', 'makespan')}</div><p>Makespan <b>${fmt(phsMk, 0)} s</b>, peringkat ${rank('PHS', 'makespan')} dari ${n}, ${fmt((1 - phsMk / get('RR', 'makespan')) * 100, 0)}% lebih cepat dari Round Robin.${heftNote}</p></div>
       <div class="takeaway"><div class="big">CSA #${rank('CSA', 'makespan')}</div><p>Mengejar <b>energi + waktu</b> sekaligus dari populasi acak. Makespan ${fmt(get('CSA', 'makespan'), 0)} s ${csaBehind ? `tertinggal dari PHS dalam budget ${R.scenario.csa?.generations ?? '–'} generasi` : 'mengungguli PHS'}: trade-off multi-objektif terlihat nyata.</p></div>
       <div class="takeaway"><div class="big">${best('totalCost')}</div><p>Biaya terendah (${fmt(get(best('totalCost'), 'totalCost'), 0)} G$), dan scheduling time heuristik ≪ metaheuristik. Tidak ada satu algoritma yang menang di semua metrik.</p></div>
       <p class="note" style="grid-column:1/-1">Angka: CloudSim 7, ${esc(R.provenance.dataset)}, ${R.scenario.runs} run, seed ${R.scenario.seed}. Ganti skenario di slide 9/10 untuk memperbarui kesimpulan.</p>`;
