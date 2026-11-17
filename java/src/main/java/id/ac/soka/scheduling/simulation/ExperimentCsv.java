@@ -16,10 +16,10 @@ import java.util.List;
 import java.util.Map;
 
 /** Per-job export: only flushed, completed CloudSim runs are recorded. */
-final class ExperimentCsv implements AutoCloseable {
-    static final String ENGINE = "CloudSim";
-    static final String ENGINE_VERSION = "7.0.1";
-    static final String MODEL_REVISION = "gocj-v1";
+public final class ExperimentCsv implements AutoCloseable {
+    public static final String ENGINE = "CloudSim";
+    public static final String ENGINE_VERSION = "7.0.1";
+    public static final String MODEL_REVISION = "gocj-v1";
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final String jobId;
@@ -30,7 +30,7 @@ final class ExperimentCsv implements AutoCloseable {
     private final FileChannel channel;
     private int completedRuns;
 
-    ExperimentCsv(Path resultsRoot, String jobId, ScenarioConfig config, String datasetSha256) throws IOException {
+    public ExperimentCsv(Path resultsRoot, String jobId, ScenarioConfig config, String datasetSha256) throws IOException {
         this.jobId = jobId;
         this.config = config;
         this.datasetSha256 = datasetSha256;
@@ -58,7 +58,7 @@ final class ExperimentCsv implements AutoCloseable {
         }
     }
 
-    void append(String algorithm, int runIndex, long runSeed, Map<String, Double> metrics, double energyJoules) throws IOException {
+    public void append(String algorithm, int runIndex, long runSeed, Map<String, Double> metrics, double energyJoules) throws IOException {
         List<Object> row = new ArrayList<>(List.of(jobId, algorithm, runIndex, runSeed, "COMPLETED"));
         for (String key : MetricsCalculator.ALL_METRIC_KEYS) {
             Double value = metrics.get(key);
@@ -79,7 +79,7 @@ final class ExperimentCsv implements AutoCloseable {
         writeStatus(directory, jobId, "RUNNING", completedRuns, totalRuns(), null);
     }
 
-    void complete() throws IOException {
+    public void complete() throws IOException {
         if (completedRuns != totalRuns()) {
             throw new IOException("Incomplete experiment: " + completedRuns + " of " + totalRuns() + " runs persisted");
         }
@@ -87,11 +87,11 @@ final class ExperimentCsv implements AutoCloseable {
         writeStatus(directory, jobId, "SUCCEEDED", completedRuns, totalRuns(), null);
     }
 
-    void fail(Throwable failure) throws IOException {
+    public void fail(Throwable failure) throws IOException {
         writeStatus(directory, jobId, "FAILED", completedRuns, totalRuns(), failure.toString());
     }
 
-    Map<String, Object> metadata() {
+    public Map<String, Object> metadata() {
         return Map.of("metricsCsv", directory.resolve("metrik.csv").toString(),
             "statusJson", directory.resolve("status.json").toString(), "completedRuns", completedRuns);
     }

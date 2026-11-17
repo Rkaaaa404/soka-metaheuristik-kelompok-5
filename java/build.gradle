@@ -33,6 +33,25 @@ application {
     mainClass = 'id.ac.soka.scheduling.App'
 }
 
+run {
+    standardInput = System.in
+    jvmArgs = ['-Dfile.encoding=UTF-8']
+}
+
+task runCli(type: JavaExec) {
+    group = 'application'
+    description = 'Menjalankan CloudSim Metaheuristic Benchmark di Terminal CLI'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'id.ac.soka.scheduling.App'
+    standardInput = System.in
+    jvmArgs = ['-Dfile.encoding=UTF-8']
+    if (project.hasProperty('args')) {
+        args = ['--cli'] + (project.property('args') as String).split('\\s+') as List
+    } else {
+        args = ['--cli']
+    }
+}
+
 test {
     useJUnitPlatform()
 }

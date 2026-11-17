@@ -1,6 +1,7 @@
 package id.ac.soka.scheduling;
 
 import id.ac.soka.scheduling.api.SimulationHttpApi;
+import id.ac.soka.scheduling.cli.CliRunner;
 import id.ac.soka.scheduling.simulation.SimulationWorker;
 
 public class App {
@@ -8,6 +9,10 @@ public class App {
         for (String arg : args) {
             if ("--worker".equals(arg)) {
                 SimulationWorker.main(args);
+                return;
+            }
+            if ("--cli".equals(arg) || arg.startsWith("--tasks=") || "--help".equals(arg) || "-h".equals(arg)) {
+                CliRunner.main(args);
                 return;
             }
         }
